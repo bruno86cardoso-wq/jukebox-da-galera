@@ -189,8 +189,8 @@
     /* SELETOR DE MODO NO CELULAR */
     .top-tools-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
       width: 100%;
     }
 
@@ -729,13 +729,16 @@
   </div>
 
   <main class="container">
-    <!-- BARRA RÁPIDA: MODO JBL (TOCAR NO CELULAR) + MOSTRAR QR CODE -->
+    <!-- BARRA RÁPIDA: MODO JBL + TRANSMITIR P/ TV + MOSTRAR QR CODE -->
     <div class="top-tools-row">
       <button id="btnToggleJbl" class="btn-tool" onclick="toggleJblMode()">
-        🔊 Modo JBL (Tocar Aqui)
+        🔊 Modo JBL
+      </button>
+      <button class="btn-tool" onclick="castToTv()">
+        📺 Parear TV
       </button>
       <button class="btn-tool" onclick="openQrModal()">
-        📱 Mostrar QR Code
+        📱 QR Code
       </button>
     </div>
 
@@ -765,7 +768,7 @@
 
       <!-- PLAYER EMBUTIDO QUANDO O "MODO JBL (TOCAR NESTE CELULAR)" ESTÁ ATIVO -->
       <div id="jblPlayerBox" class="jbl-player-box">
-        <video id="mobJblVideo" controls playsinline></video>
+        <video id="mobJblVideo" controls playsinline x-webkit-airplay="allow"></video>
       </div>
 
       <!-- ÁREA DE VOTAÇÃO OBRIGATÓRIA (APENAS NO MODO DESAFIO) -->
@@ -948,8 +951,30 @@
       const btn = document.getElementById('btnToggleJbl');
       const box = document.getElementById('jblPlayerBox');
       btn.classList.toggle('jbl-active', jblModeActive);
-      btn.textContent = jblModeActive ? '🔊 Tocando Aqui (JBL ON)' : '🔊 Modo JBL (Tocar Aqui)';
+      btn.textContent = jblModeActive ? '🔊 JBL ON' : '🔊 Modo JBL';
       box.style.display = (jblModeActive && latestState?.currentSong) ? 'block' : 'none';
+    }
+
+    async function castToTv() {
+      // Ativa o player no celular primeiro caso ainda não esteja ligado
+      if (!jblModeActive) {
+        toggleJblMode();
+      }
+      // Tenta abrir o seletor nativo de Chromecast (Android/Chrome)
+      if (jblVideoEl.remote && typeof jblVideoEl.remote.prompt === 'function') {
+        try {
+          await jblVideoEl.remote.prompt();
+          return;
+        } catch (e) {}
+      }
+      // Tenta abrir o seletor nativo de AirPlay (iPhone/Safari)
+      if (typeof jblVideoEl.webkitShowPlaybackTargetPicker === 'function') {
+        try {
+          jblVideoEl.webkitShowPlaybackTargetPicker();
+          return;
+        } catch (e) {}
+      }
+      showToast('📺 Dica: Use o ícone Transmitir/Cast no vídeo ou espelhe a tela do celular na TV!');
     }
 
     function syncJblPlayer(song) {
