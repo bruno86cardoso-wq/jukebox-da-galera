@@ -1,0 +1,10 @@
+{
+  "name": "Jukebox da Galera",
+  "short_name": "Jukebox",
+  "description": "Telão e Jukebox da Galera com QR Code integrado ao YouTube Music",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090b14",
+  "theme_color": "#090b14",
+  "orientation": "portrait"
+}
