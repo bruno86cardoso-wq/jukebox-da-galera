@@ -276,6 +276,7 @@
       flex-direction: column;
       gap: 14px;
       min-height: 0;
+      min-width: 0;
     }
 
     .right-col {
@@ -283,6 +284,7 @@
       grid-template-rows: auto 1fr 1fr;
       gap: 14px;
       min-height: 0;
+      min-width: 0;
     }
 
     .card {
@@ -292,6 +294,8 @@
       padding: 16px 20px;
       backdrop-filter: blur(16px);
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      min-width: 0;
+      max-width: 100%;
     }
 
     /* VIDEO AREA */
@@ -900,6 +904,12 @@
       .song-header {
         flex-direction: column;
         align-items: stretch;
+      }
+
+      .song-title {
+        white-space: normal;
+        word-break: break-word;
+        font-size: 18px;
       }
 
       .player-transport {
