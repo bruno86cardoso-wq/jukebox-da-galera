@@ -226,15 +226,73 @@
       margin-bottom: 12px;
       border-radius: 14px;
       overflow: hidden;
-      background: #000;
+      background: rgba(6, 182, 212, 0.1);
       border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 10px 12px;
       display: none;
+    }
+
+    .jbl-audio-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .jbl-media-toggle {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
     }
 
     .jbl-player-box video {
       width: 100%;
-      max-height: 210px;
-      display: block;
+      max-height: 200px;
+      border-radius: 10px;
+      margin-top: 8px;
+      background: #000;
+      display: none;
+    }
+
+    .cast-choice-btn {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 16px;
+      padding: 14px;
+      color: #fff;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+    }
+
+    .cast-choice-btn:active {
+      transform: scale(0.98);
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .cast-choice-btn.fast {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .cast-choice-btn.video {
+      border-color: rgba(56, 189, 248, 0.5);
+      background: rgba(56, 189, 248, 0.12);
     }
 
     /* MODAL QR CODE NO CELULAR */
@@ -768,6 +826,12 @@
 
       <!-- PLAYER EMBUTIDO QUANDO O "MODO JBL (TOCAR NESTE CELULAR)" ESTÁ ATIVO -->
       <div id="jblPlayerBox" class="jbl-player-box">
+        <div class="jbl-audio-status">
+          <span id="jblModeStatusText">⚡ Modo Só Música (Ultra Rápido)</span>
+          <button id="btnToggleMediaMode" type="button" class="jbl-media-toggle" onclick="toggleJblMediaMode()">
+            🎬 Ativar Vídeo
+          </button>
+        </div>
         <video id="mobJblVideo" controls playsinline x-webkit-airplay="allow"></video>
       </div>
 
@@ -849,6 +913,40 @@
     </section>
   </main>
 
+  <!-- MODAL DE PAREAR NA TV (ESCOLHA: SÓ MÚSICA OU MÚSICA + VÍDEO) -->
+  <div id="castModal" class="qr-modal" onclick="closeCastModal()">
+    <div class="qr-modal-card" onclick="event.stopPropagation()">
+      <h2 style="font-size: 20px; font-weight: 900;">📺 Parear na TV</h2>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Como você prefere transmitir para a TV ou caixa de som?
+      </p>
+
+      <button type="button" class="cast-choice-btn fast" onclick="startCastWithMode('audio')">
+        <span style="font-size: 28px;">🎵</span>
+        <div>
+          <div style="font-weight: 900; font-size: 15px; color: #34d399;">Só Música (Mais Rápido ⚡)</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Carrega na hora! Ideal para caixa JBL, Bluetooth ou som na TV sem pesar a internet.
+          </div>
+        </div>
+      </button>
+
+      <button type="button" class="cast-choice-btn video" onclick="startCastWithMode('video')">
+        <span style="font-size: 28px;">🎬</span>
+        <div>
+          <div style="font-weight: 900; font-size: 15px; color: #38bdf8;">Música + Vídeo (Clipe na TV)</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Mostra o videoclipe oficial na TV via Chromecast, AirPlay ou espelhamento!
+          </div>
+        </div>
+      </button>
+
+      <button type="button" class="btn-tool" style="width: 100%; margin-top: 4px;" onclick="closeCastModal()">
+        Cancelar ✕
+      </button>
+    </div>
+  </div>
+
   <!-- MODAL DE QR CODE NA TELA DO CELULAR -->
   <div id="qrModal" class="qr-modal" onclick="closeQrModal(event)">
     <div class="qr-modal-card" onclick="event.stopPropagation()">
@@ -879,8 +977,10 @@
     let latestState = null;
     let currentSearchResults = [];
     let jblModeActive = false;
+    let jblMediaMode = 'audio'; // 'audio' (padrão no celular: sem vídeo e super rápido) | 'video' (clipe para TV)
     let jblCurrentSongId = null;
     let jblCurrentVideoId = null;
+    let jblLoadedMediaMode = null;
     let partyInviteUrl = window.location.origin;
     const jblVideoEl = document.getElementById('mobJblVideo');
 
@@ -928,17 +1028,19 @@
     function toggleJblMode() {
       jblModeActive = !jblModeActive;
       if (jblModeActive) {
+        jblMediaMode = 'audio'; // No celular, sempre começa só com áudio (muito mais rápido e sem vídeo)
         socket.emit('registerTv');
         if (navigator.wakeLock) {
           navigator.wakeLock.request('screen').catch(() => {});
         }
-        showToast('🔊 Modo JBL Ativo! As músicas vão tocar neste celular.');
+        showToast('🔊 Modo JBL Ativo (Só Música ⚡ Sem Vídeo)!');
         if (latestState && latestState.currentSong) {
           syncJblPlayer(latestState.currentSong);
         }
       } else {
         jblCurrentSongId = null;
         jblCurrentVideoId = null;
+        jblLoadedMediaMode = null;
         jblVideoEl.pause();
         jblVideoEl.removeAttribute('src');
         jblVideoEl.load();
@@ -947,19 +1049,68 @@
       updateJblUi();
     }
 
+    function toggleJblMediaMode() {
+      jblMediaMode = jblMediaMode === 'audio' ? 'video' : 'audio';
+      updateJblUi();
+      if (jblModeActive && latestState && latestState.currentSong) {
+        jblLoadedMediaMode = null; // Força recarregar no novo formato
+        syncJblPlayer(latestState.currentSong);
+      }
+      showToast(
+        jblMediaMode === 'audio'
+          ? '🎵 Modo Só Música ativado (Mais Rápido)!'
+          : '🎬 Modo Música + Vídeo ativado!'
+      );
+    }
+
     function updateJblUi() {
       const btn = document.getElementById('btnToggleJbl');
       const box = document.getElementById('jblPlayerBox');
+      const statusText = document.getElementById('jblModeStatusText');
+      const mediaBtn = document.getElementById('btnToggleMediaMode');
+
       btn.classList.toggle('jbl-active', jblModeActive);
       btn.textContent = jblModeActive ? '🔊 JBL ON' : '🔊 Modo JBL';
       box.style.display = (jblModeActive && latestState?.currentSong) ? 'block' : 'none';
+
+      if (jblMediaMode === 'video') {
+        statusText.textContent = '🎬 Modo Música + Clipe (TV)';
+        mediaBtn.textContent = '🎵 Só Música (Rápido)';
+        jblVideoEl.style.display = 'block';
+      } else {
+        statusText.textContent = '⚡ Tocando Só Música (Sem Vídeo)';
+        mediaBtn.textContent = '🎬 Ver Clipe';
+        jblVideoEl.style.display = 'none';
+      }
     }
 
-    async function castToTv() {
-      // Ativa o player no celular primeiro caso ainda não esteja ligado
+    function castToTv() {
+      document.getElementById('castModal').style.display = 'flex';
+    }
+
+    function closeCastModal() {
+      document.getElementById('castModal').style.display = 'none';
+    }
+
+    async function startCastWithMode(mode) {
+      closeCastModal();
+      jblMediaMode = mode; // 'audio' ou 'video'
+
       if (!jblModeActive) {
-        toggleJblMode();
+        jblModeActive = true;
+        socket.emit('registerTv');
+        if (navigator.wakeLock) {
+          navigator.wakeLock.request('screen').catch(() => {});
+        }
       }
+
+      jblLoadedMediaMode = null;
+      updateJblUi();
+
+      if (latestState && latestState.currentSong) {
+        syncJblPlayer(latestState.currentSong);
+      }
+
       // Tenta abrir o seletor nativo de Chromecast (Android/Chrome)
       if (jblVideoEl.remote && typeof jblVideoEl.remote.prompt === 'function') {
         try {
@@ -974,7 +1125,28 @@
           return;
         } catch (e) {}
       }
-      showToast('📺 Dica: Use o ícone Transmitir/Cast no vídeo ou espelhe a tela do celular na TV!');
+
+      if (mode === 'audio') {
+        showToast('🎵 Modo Só Música ativo! Conecte no Bluetooth/JBL ou espelhe o som na TV.');
+      } else {
+        showToast('🎬 Clipe ativado! Toque no ícone de Transmitir no vídeo ou espelhe na TV.');
+      }
+    }
+
+    function updateMediaSession(song) {
+      if (!('mediaSession' in navigator) || !song) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song.title || 'Jukebox da Galera',
+          artist: song.artist || 'YouTube Music',
+          album: 'Jukebox da Galera',
+          artwork: song.thumbnail ? [{ src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' }] : []
+        });
+        navigator.mediaSession.setActionHandler('play', () => remoteControl('togglePause'));
+        navigator.mediaSession.setActionHandler('pause', () => remoteControl('togglePause'));
+        navigator.mediaSession.setActionHandler('previoustrack', () => remoteControl('previousSong'));
+        navigator.mediaSession.setActionHandler('nexttrack', () => remoteControl('skipSong'));
+      } catch (e) {}
     }
 
     function syncJblPlayer(song) {
@@ -983,6 +1155,7 @@
         box.style.display = 'none';
         jblCurrentSongId = null;
         jblCurrentVideoId = null;
+        jblLoadedMediaMode = null;
         jblVideoEl.pause();
         jblVideoEl.removeAttribute('src');
         jblVideoEl.load();
@@ -990,12 +1163,35 @@
       }
 
       box.style.display = 'block';
-      if (song.id !== jblCurrentSongId || song.videoId !== jblCurrentVideoId) {
+      updateJblUi();
+
+      if (
+        song.id !== jblCurrentSongId ||
+        song.videoId !== jblCurrentVideoId ||
+        jblLoadedMediaMode !== jblMediaMode
+      ) {
+        const resumeTime = (song.id === jblCurrentSongId && jblVideoEl.currentTime > 1)
+          ? jblVideoEl.currentTime
+          : 0;
+
         jblCurrentSongId = song.id;
         jblCurrentVideoId = song.videoId;
+        jblLoadedMediaMode = jblMediaMode;
+
         jblVideoEl.poster = song.thumbnail || '';
-        jblVideoEl.src = `/api/stream/${song.videoId}`;
+        const endpoint = jblMediaMode === 'video'
+          ? `/api/stream/${song.videoId}`
+          : `/api/audio/${song.videoId}`;
+
+        jblVideoEl.src = endpoint;
+        if (resumeTime > 0) {
+          jblVideoEl.addEventListener('loadedmetadata', function onMeta() {
+            jblVideoEl.removeEventListener('loadedmetadata', onMeta);
+            jblVideoEl.currentTime = resumeTime;
+          });
+        }
         jblVideoEl.play().catch(() => {});
+        updateMediaSession(song);
       }
     }
 

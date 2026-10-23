@@ -319,6 +319,39 @@
       background: #000;
     }
 
+    .audio-cover-stage {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: radial-gradient(circle at center, rgba(139, 92, 246, 0.28), rgba(7, 9, 19, 0.96));
+      z-index: 4;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .audio-cover-stage img {
+      width: 180px;
+      height: 180px;
+      border-radius: 24px;
+      object-fit: cover;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      border: 2px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .audio-stage-pill {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #10b981;
+      color: #34d399;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
     .loading-video-overlay {
       position: absolute;
       inset: 0;
@@ -940,7 +973,16 @@
   <!-- MODAL INICIAL DE ESCOLHA DO MODO -->
   <div id="startModal" class="start-modal">
     <h1>🎵 Escolha o Modo da Festa</h1>
-    <p class="sub">Você pode alternar entre os dois modos a qualquer momento no topo da tela ou pelo celular!</p>
+    <p class="sub">Você pode alternar entre os modos e entre <strong>Só Música (Mais Rápido)</strong> ou <strong>Música + Clipe</strong> a qualquer momento!</p>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 22px; background: rgba(255,255,255,0.06); padding: 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14);">
+      <button id="modalMediaAudio" type="button" class="mode-btn livre active" onclick="setTvMediaMode('audio')">
+        🎵 Só Música (Mais Rápido ⚡)
+      </button>
+      <button id="modalMediaVideo" type="button" class="mode-btn desafio" onclick="setTvMediaMode('video')">
+        🎬 Música + Vídeo (Clipe)
+      </button>
+    </div>
 
     <div class="mode-cards">
       <div class="mode-choice-card livre" onclick="startTvWithMode('livre')">
@@ -983,6 +1025,10 @@
         </button>
       </div>
 
+      <button id="btnTvMediaMode" class="btn-action" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #34d399;" onclick="toggleTvMediaMode()" title="Alternar entre Só Música (Mais Rápido) e Música + Clipe">
+        🎵 Só Música (Rápido ⚡)
+      </button>
+
       <div class="pill-control" title="Deixe 0 para contar automaticamente os celulares conectados">
         <span>👥 Na Festa:</span>
         <input id="fixedPlayersInput" type="number" min="0" max="99" value="0" onchange="updateFixedPlayers(this.value)" />
@@ -1003,9 +1049,19 @@
       <div class="card video-card">
         <video id="tvVideoPlayer" controls autoplay playsinline></video>
 
+        <div id="audioCoverStage" class="audio-cover-stage">
+          <span class="audio-stage-pill">⚡ MODO SÓ MÚSICA (CARREGAMENTO RÁPIDO)</span>
+          <img id="audioStageThumb" src="" alt="Capa da Música" />
+          <div id="audioStageTitle" style="font-size: 22px; font-weight: 900; max-width: 90%;"></div>
+          <div id="audioStageArtist" style="font-size: 15px; color: var(--text-muted); font-weight: 700;"></div>
+          <button class="btn-action" onclick="setTvMediaMode('video')" style="margin-top: 4px;">
+            🎬 Quero ver o Videoclipe
+          </button>
+        </div>
+
         <div id="loadingOverlay" class="loading-video-overlay">
           <div class="spinner"></div>
-          <h3 id="loadingSongText" style="font-size: 22px; font-weight: 800;">Carregando clipe...</h3>
+          <h3 id="loadingSongText" style="font-size: 22px; font-weight: 800;">Carregando música...</h3>
           <p style="color: var(--text-muted); font-size: 14px;">Preparando stream sem anúncios...</p>
         </div>
 
@@ -1126,6 +1182,7 @@
   <script>
     const socket = io();
     const videoEl = document.getElementById('tvVideoPlayer');
+    const audioCoverStage = document.getElementById('audioCoverStage');
     const loadingOverlay = document.getElementById('loadingOverlay');
     const unmuteOverlay = document.getElementById('unmuteOverlay');
     const idleScreen = document.getElementById('idleScreen');
@@ -1136,6 +1193,43 @@
     let lastState = null;
     let audioUnlocked = false;
     let isPrimaryTv = true;
+    let tvMediaMode = 'audio'; // 'audio' (padrão rápido) | 'video' (clipe)
+    let tvLoadedMediaMode = null;
+
+    function setTvMediaMode(mode) {
+      tvMediaMode = mode === 'video' ? 'video' : 'audio';
+      const btnTop = document.getElementById('btnTvMediaMode');
+      const btnModalAudio = document.getElementById('modalMediaAudio');
+      const btnModalVideo = document.getElementById('modalMediaVideo');
+
+      if (btnModalAudio && btnModalVideo) {
+        btnModalAudio.classList.toggle('active', tvMediaMode === 'audio');
+        btnModalVideo.classList.toggle('active', tvMediaMode === 'video');
+      }
+
+      if (btnTop) {
+        if (tvMediaMode === 'audio') {
+          btnTop.innerHTML = '🎵 Só Música (Rápido ⚡)';
+          btnTop.style.background = 'rgba(16, 185, 129, 0.2)';
+          btnTop.style.borderColor = '#10b981';
+          btnTop.style.color = '#34d399';
+        } else {
+          btnTop.innerHTML = '🎬 Música + Clipe';
+          btnTop.style.background = 'rgba(56, 189, 248, 0.2)';
+          btnTop.style.borderColor = '#38bdf8';
+          btnTop.style.color = '#38bdf8';
+        }
+      }
+
+      if (lastState && lastState.currentSong) {
+        tvLoadedMediaMode = null;
+        syncVideoPlayer(lastState.currentSong);
+      }
+    }
+
+    function toggleTvMediaMode() {
+      setTvMediaMode(tvMediaMode === 'audio' ? 'video' : 'audio');
+    }
 
     socket.on('connect', () => {
       isPrimaryTv = true;
@@ -1201,7 +1295,8 @@
       if (currentVideoId && currentPlayingSongId) {
         setTimeout(() => {
           if (currentVideoId) {
-            videoEl.src = `/api/stream/${currentVideoId}?t=${Date.now()}`;
+            const base = tvMediaMode === 'video' ? '/api/stream/' : '/api/audio/';
+            videoEl.src = `${base}${currentVideoId}?t=${Date.now()}`;
             tryPlayVideo();
           }
         }, 2000);
@@ -1251,10 +1346,12 @@
       if (!isPrimaryTv) return;
       if (!song) {
         idleScreen.style.display = 'flex';
+        audioCoverStage.style.display = 'none';
         loadingOverlay.style.display = 'none';
         unmuteOverlay.style.display = 'none';
         currentPlayingSongId = null;
         currentVideoId = null;
+        tvLoadedMediaMode = null;
         videoEl.pause();
         videoEl.removeAttribute('src');
         videoEl.load();
@@ -1263,13 +1360,42 @@
 
       idleScreen.style.display = 'none';
 
-      if (song.id !== currentPlayingSongId || song.videoId !== currentVideoId) {
+      // Atualiza visual de capa caso esteja no modo Só Música (Rápido)
+      if (tvMediaMode === 'audio') {
+        audioCoverStage.style.display = 'flex';
+        document.getElementById('audioStageThumb').src = song.thumbnail || '';
+        document.getElementById('audioStageTitle').textContent = song.title || '';
+        document.getElementById('audioStageArtist').textContent = song.artist || '';
+      } else {
+        audioCoverStage.style.display = 'none';
+      }
+
+      if (
+        song.id !== currentPlayingSongId ||
+        song.videoId !== currentVideoId ||
+        tvLoadedMediaMode !== tvMediaMode
+      ) {
+        const resumeTime = (song.id === currentPlayingSongId && videoEl.currentTime > 1)
+          ? videoEl.currentTime
+          : 0;
+
         currentPlayingSongId = song.id;
         currentVideoId = song.videoId;
+        tvLoadedMediaMode = tvMediaMode;
+
         document.getElementById('loadingSongText').textContent = `Carregando: ${song.title}`;
         loadingOverlay.style.display = 'flex';
         videoEl.poster = song.thumbnail || '';
-        videoEl.src = `/api/stream/${song.videoId}`;
+        videoEl.src = tvMediaMode === 'video'
+          ? `/api/stream/${song.videoId}`
+          : `/api/audio/${song.videoId}`;
+
+        if (resumeTime > 0) {
+          videoEl.addEventListener('loadedmetadata', function onMeta() {
+            videoEl.removeEventListener('loadedmetadata', onMeta);
+            videoEl.currentTime = resumeTime;
+          });
+        }
         tryPlayVideo();
       }
     }

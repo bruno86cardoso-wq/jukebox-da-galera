@@ -39,17 +39,17 @@ async function ensureYtDlpBinary() {
 }
 
 // ==========================================
-// EXTRATOR DE STREAM DIRETO (SEM BLOQUEIO VEVO / SEM ANÚNCIOS)
+// EXTRATOR DE STREAM DIRETO (ÁUDIO M4A ULTRA-RÁPIDO + VÍDEO MP4 SEM ANÚNCIOS)
 // ==========================================
-const streamCache = new Map(); // videoId -> { url, expiresAt }
-const pendingExtractions = new Map(); // videoId -> Promise<string>
+const streamCache = new Map(); // videoId -> { audioUrl, videoUrl, expiresAt }
+const pendingExtractions = new Map(); // videoId -> Promise<{ audioUrl, videoUrl }>
 
 function resolveStreamUrl(videoId) {
   if (!videoId) return Promise.resolve(null);
 
   const cached = streamCache.get(videoId);
   if (cached && cached.expiresAt > Date.now()) {
-    return Promise.resolve(cached.url);
+    return Promise.resolve(cached);
   }
 
   if (pendingExtractions.has(videoId)) {
@@ -62,7 +62,7 @@ function resolveStreamUrl(videoId) {
       '--no-playlist',
       '--no-warnings',
       '-g',
-      '-f', 'b[ext=mp4]/b',
+      '-f', 'ba[ext=m4a]/ba,b[ext=mp4]/b',
       `https://www.youtube.com/watch?v=${videoId}`
     ];
 
@@ -72,15 +72,23 @@ function resolveStreamUrl(videoId) {
         console.warn(`⚠️ Erro ao extrair stream para ${videoId}:`, err.message);
         return resolve(null);
       }
-      const url = (stdout || '').trim().split(/\r?\n/)[0];
-      if (url && url.startsWith('http')) {
-        // Cacheia por 2 horas
-        streamCache.set(videoId, {
-          url,
+      const urls = (stdout || '')
+        .trim()
+        .split(/\r?\n/)
+        .map(u => u.trim())
+        .filter(u => u.startsWith('http'));
+
+      if (urls.length > 0) {
+        const audioUrl = urls[0];
+        const videoUrl = urls[1] || urls[0];
+        const entry = {
+          audioUrl,
+          videoUrl,
           expiresAt: Date.now() + 2 * 60 * 60 * 1000
-        });
-        console.log(`🎬 Stream MP4 pronto para [${videoId}]`);
-        resolve(url);
+        };
+        streamCache.set(videoId, entry);
+        console.log(`⚡ Streams prontos (Áudio + Vídeo) para [${videoId}]`);
+        resolve(entry);
       } else {
         resolve(null);
       }
@@ -673,47 +681,63 @@ app.get('/tv', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'tv.html'));
 });
 
-// Proxy de stream MP4 com suporte a Range (toca 100% dos vídeos da VEVO/YouTube sem bloqueio!)
+function proxyMediaStream(directUrl, req, res) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  };
+  if (req.headers.range) {
+    headers.Range = req.headers.range;
+  }
+
+  const client = directUrl.startsWith('https') ? https : http;
+  const proxyReq = client.get(directUrl, { headers }, (proxyRes) => {
+    if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+      return res.redirect(proxyRes.headers.location);
+    }
+
+    const forwardHeaders = {};
+    if (proxyRes.headers['content-type']) forwardHeaders['Content-Type'] = proxyRes.headers['content-type'];
+    if (proxyRes.headers['content-length']) forwardHeaders['Content-Length'] = proxyRes.headers['content-length'];
+    if (proxyRes.headers['content-range']) forwardHeaders['Content-Range'] = proxyRes.headers['content-range'];
+    forwardHeaders['Accept-Ranges'] = 'bytes';
+
+    res.writeHead(proxyRes.statusCode || 200, forwardHeaders);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.warn('Erro no proxy de mídia:', err.message);
+    if (!res.headersSent) res.status(502).end();
+  });
+
+  req.on('close', () => {
+    proxyReq.destroy();
+  });
+}
+
+// Proxy de ÁUDIO PURO M4A (~10x mais leve e rápido — ideal para Celular / Modo JBL!)
+app.get('/api/audio/:videoId', async (req, res) => {
+  const { videoId } = req.params;
+  try {
+    const resolved = await resolveStreamUrl(videoId);
+    if (!resolved || !resolved.audioUrl) {
+      return res.status(404).send('Áudio indisponível');
+    }
+    proxyMediaStream(resolved.audioUrl, req, res);
+  } catch (err) {
+    if (!res.headersSent) res.status(500).send(err.message);
+  }
+});
+
+// Proxy de VÍDEO + ÁUDIO MP4 com suporte a Range (para TV com Clipe!)
 app.get('/api/stream/:videoId', async (req, res) => {
   const { videoId } = req.params;
   try {
-    const directUrl = await resolveStreamUrl(videoId);
-    if (!directUrl) {
+    const resolved = await resolveStreamUrl(videoId);
+    if (!resolved || !resolved.videoUrl) {
       return res.status(404).send('Stream indisponível');
     }
-
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    };
-    if (req.headers.range) {
-      headers.Range = req.headers.range;
-    }
-
-    const client = directUrl.startsWith('https') ? https : http;
-    const proxyReq = client.get(directUrl, { headers }, (proxyRes) => {
-      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
-        // Segue redirect do googlevideo se houver
-        return res.redirect(proxyRes.headers.location);
-      }
-
-      const forwardHeaders = {};
-      if (proxyRes.headers['content-type']) forwardHeaders['Content-Type'] = proxyRes.headers['content-type'];
-      if (proxyRes.headers['content-length']) forwardHeaders['Content-Length'] = proxyRes.headers['content-length'];
-      if (proxyRes.headers['content-range']) forwardHeaders['Content-Range'] = proxyRes.headers['content-range'];
-      forwardHeaders['Accept-Ranges'] = 'bytes';
-
-      res.writeHead(proxyRes.statusCode || 200, forwardHeaders);
-      proxyRes.pipe(res);
-    });
-
-    proxyReq.on('error', (err) => {
-      console.warn('Erro no proxy de vídeo:', err.message);
-      if (!res.headersSent) res.status(502).end();
-    });
-
-    req.on('close', () => {
-      proxyReq.destroy();
-    });
+    proxyMediaStream(resolved.videoUrl, req, res);
   } catch (err) {
     if (!res.headersSent) res.status(500).send(err.message);
   }
