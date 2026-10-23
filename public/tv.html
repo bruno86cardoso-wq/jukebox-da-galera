@@ -829,6 +829,100 @@
       0% { transform: translateY(0) scale(0.7); opacity: 1; }
       100% { transform: translateY(-420px) scale(1.4); opacity: 0; }
     }
+
+    /* RESPONSIVIDADE PARA CELULAR / TELAS MENORES */
+    @media (max-width: 960px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .start-modal {
+        position: fixed;
+        overflow-y: auto;
+        justify-content: flex-start;
+        padding: 20px 14px;
+      }
+
+      .start-modal h1 {
+        font-size: 26px;
+      }
+
+      .start-modal p.sub {
+        font-size: 14px;
+        margin-bottom: 16px;
+      }
+
+      .mode-cards {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .mode-choice-card {
+        padding: 18px;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 14px;
+      }
+
+      .controls-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .mode-switch {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .mode-btn {
+        flex: 1;
+        font-size: 12px;
+        padding: 8px 8px;
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+        padding: 12px 14px 28px;
+        overflow: visible;
+      }
+
+      .video-card {
+        min-height: 220px;
+      }
+
+      .song-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .player-transport {
+        justify-content: space-between;
+      }
+
+      .btn-transport {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .vote-dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .right-col {
+        grid-template-rows: auto auto auto;
+      }
+
+      .panel-card {
+        max-height: 320px;
+      }
+    }
   </style>
 </head>
 <body>
