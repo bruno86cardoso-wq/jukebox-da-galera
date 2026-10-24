@@ -573,7 +573,262 @@ function createJukebox(options = {}) {
   io.on('connection', (socket) => {
     let currentPlayerId = null;
     const identity = playerIdForToken(socket.handshake.auth?.playerToken);
-    let isHost = secretEquals(soc…2445 tokens truncated…ow new Error('Modo de QR inválido.');
+    let isHost = secretEquals(socket.handshake.auth?.hostToken, hostSession);
+    const address = socket.request ? socket.request.socket.remoteAddress : socket.handshake.address;
+
+    function on(event, handler, limit = 60) {
+      socket.on(event, (data, callback) => {
+        const reply = typeof callback === 'function' ? callback : result => {
+          if (!result.ok) socket.emit('actionError', result);
+        };
+        try {
+          if (!allow((event === 'authenticateHost' ? address : identity || address) + ':' + event, limit)) throw new Error('Muitas tentativas. Aguarde um minuto.');
+          if (!isRecord(data)) throw new Error('Dados inválidos.');
+          handler(data, reply);
+        } catch (error) {
+          reply({ ok: false, error: error.message || 'Não foi possível executar a ação.' });
+        }
+      });
+    }
+
+    on('authenticateHost', ({ pin, token }, reply) => {
+      if (!secretEquals(token, hostSession) && !secretEquals(pin, hostPin)) throw new Error('Código de anfitrião incorreto.');
+      isHost = true;
+      reply({ ok: true, token: hostSession });
+    }, 10);
+
+    on('releaseTv', (_, reply) => {
+      if (activeTvSocketId === socket.id) activeTvSocketId = null;
+      reply({ ok: true });
+    });
+
+    socket.emit('stateUpdate', getPublicState());
+
+    // Garante que apenas UMA aba/tela de Telão toque áudio por vez!
+    on('registerTv', (_, reply) => {
+      if (!isHost) throw new Error('Ative os controles de anfitrião para reproduzir.');
+      if (activeTvSocketId && activeTvSocketId !== socket.id) {
+        io.to(activeTvSocketId).emit('tvDeactivated');
+      }
+      activeTvSocketId = socket.id;
+      console.log(`📺 Telão Principal registrado: ${socket.id}`);
+      socket.emit('stateUpdate', getPublicState());
+      reply({ ok: true });
+    });
+
+    on('registerPlayer', ({ name }, callback) => {
+      if (!identity) throw new Error('Sessão inválida. Recarregue a página.');
+      name = text(name, 22);
+      if (!name) throw new Error('Digite seu nome ou apelido.');
+      currentPlayerId = identity;
+      const player = getOrCreatePlayer(identity, name);
+      if (!playerSockets.has(identity)) playerSockets.set(identity, new Set());
+      playerSockets.get(identity).add(socket.id);
+      console.log(`👤 Participante conectado: ${player.avatar} ${player.name}`);
+      callback({ ok: true, player });
+      broadcastState();
+    });
+
+    on('addSong', ({ song }, callback) => {
+      if (!currentPlayerId) throw new Error('Entre na festa antes de pedir músicas.');
+      song = normalizeSong(song);
+      if (!song || !song.videoId) {
+        return callback && callback({ ok: false, error: 'Música inválida.' });
+      }
+      const player = players.get(currentPlayerId);
+      if (gameState.queue.length >= 100 || gameState.queue.filter(s => s.addedBy.id === player.id).length >= 10) throw new Error('Limite da fila atingido: até 10 pedidos por pessoa e 100 na festa.');
+
+      if (
+        gameState.mode === 'desafio' &&
+        gameState.currentSong &&
+        gameState.currentSong.addedBy.id !== player.id &&
+        !gameState.currentSong.votes[player.id]
+      ) {
+        return callback && callback({
+          ok: false,
+          error: 'Vote na música que está tocando agora (👍 ou 👎) para liberar novos pedidos!'
+        });
+      }
+
+      const alreadyInQueue =
+        (gameState.currentSong && gameState.currentSong.videoId === song.videoId) ||
+        gameState.queue.some(item => item.videoId === song.videoId);
+
+      if (alreadyInQueue) {
+        return callback && callback({
+          ok: false,
+          error: 'Essa música já está na fila ou tocando agora!'
+        });
+      }
+
+      const newSong = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        videoId: song.videoId,
+        title: song.title || 'Música',
+        artist: song.artist || 'YouTube Music',
+        thumbnail: song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`,
+        duration: song.duration || '3:30',
+        addedBy: {
+          id: player.id,
+          name: player.name,
+          avatar: player.avatar
+        },
+        addedAt: Date.now()
+      };
+
+      console.log(`➕ Música adicionada por ${player.name}: "${newSong.title}" (${newSong.videoId})`);
+
+      // Já dispara a extração do stream em background imediatamente!
+      resolveStreamUrl(newSong.videoId).catch(() => {});
+
+      gameState.queue.push(newSong);
+      rebalanceQueue();
+
+      if (!gameState.currentSong) {
+        startNextSong('idle');
+      } else {
+        broadcastState();
+      }
+
+      if (typeof callback === 'function') {
+        callback({ ok: true, song: newSong });
+      }
+    });
+
+    on('voteSong', ({ type, songId }, callback) => {
+      const playerId = currentPlayerId;
+      if (gameState.mode !== 'desafio') throw new Error('A votação está disponível apenas no modo Desafio.');
+      if (!songId || songId !== gameState.currentSong?.id) throw new Error('A música mudou. Vote na música atual.');
+      const player = players.get(playerId);
+      const song = gameState.currentSong;
+
+      if (!player || !song) {
+        return callback && callback({ ok: false, error: 'Nenhuma música tocando no momento.' });
+      }
+
+      if (song.addedBy.id === playerId) {
+        return callback && callback({ ok: false, error: 'Essa música é sua! Segure o mistério 🤫' });
+      }
+
+      if (song.votes[playerId]) {
+        return callback && callback({ ok: false, error: 'Você já votou nesta música!' });
+      }
+
+      const songOwner = players.get(song.addedBy.id);
+
+      if (type === 'dislike') {
+        if (player.ammo <= 0) {
+          return callback && callback({
+            ok: false,
+            error: 'Sem munição de Dislike (💣 0/3)! Dê Likes em músicas boas para recarregar.'
+          });
+        }
+
+        player.ammo = Math.max(0, player.ammo - 1);
+        player.consecutiveDislikes += 1;
+
+        let voteWeight = 1;
+        if (player.consecutiveDislikes >= RANZINZA_STREAK) {
+          player.isRanzinza = true;
+          player.score -= 10;
+          voteWeight = 0.5;
+          io.emit('ranzinzaAlert', {
+            player: { id: player.id, name: player.name, avatar: player.avatar },
+            streak: player.consecutiveDislikes
+          });
+        }
+
+        song.votes[playerId] = {
+          type: 'dislike',
+          weight: voteWeight,
+          at: Date.now()
+        };
+
+        if (!player.isRanzinza) {
+          player.score += 2;
+        }
+
+        if (songOwner) {
+          songOwner.score -= 5;
+        }
+      } else if (type === 'like') {
+        player.consecutiveDislikes = 0;
+        player.isRanzinza = false;
+        player.likesTowardsAmmo += 1;
+
+        if (player.likesTowardsAmmo >= LIKES_TO_RECHARGE) {
+          player.likesTowardsAmmo = 0;
+          if (player.ammo < MAX_AMMO) {
+            player.ammo += 1;
+          }
+        }
+
+        song.votes[playerId] = {
+          type: 'like',
+          weight: 1,
+          at: Date.now()
+        };
+
+        player.score += 2;
+
+        if (songOwner) {
+          songOwner.score += 10;
+        }
+      } else {
+        return callback && callback({ ok: false, error: 'Tipo de voto inválido.' });
+      }
+
+      const dislikesEffective = Object.values(song.votes)
+        .filter(v => v.type === 'dislike')
+        .reduce((sum, v) => sum + (v.weight || 1), 0);
+
+      const threshold = getDislikeThreshold();
+
+      if (gameState.mode === 'desafio' && dislikesEffective >= threshold) {
+        song.mysteryRevealed = true;
+        const vetoInfo = {
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          addedBy: song.addedBy,
+          dislikesEffective,
+          threshold,
+          at: Date.now()
+        };
+        gameState.lastSkipAlert = vetoInfo;
+        finalizeCurrentSongScore(true);
+
+        io.emit('songVetoed', vetoInfo);
+        startNextSong('vetoed');
+      } else {
+        broadcastState();
+      }
+
+      if (typeof callback === 'function') {
+        callback({ ok: true, player });
+      }
+    });
+
+    on('sendReaction', ({ emoji }, reply) => {
+      const player = players.get(currentPlayerId);
+      if (!player) throw new Error('Entre na festa primeiro.');
+      if (!['🔥', '❤️', '😂', '🍻', '💃'].includes(emoji)) throw new Error('Reação inválida.');
+      io.emit('liveReaction', {
+        emoji: emoji || '🔥',
+        playerName: player.name
+      });
+      reply({ ok: true });
+    }, 30);
+
+    on('hostAction', ({ action, payload = {} }, reply) => {
+      if (!isHost) throw new Error('Este controle é exclusivo do anfitrião.');
+      if (!isRecord(payload)) throw new Error('Comando inválido.');
+      const actions = ['setMode', 'setFixedPlayerCount', 'skipSong', 'previousSong', 'togglePause', 'syncPauseState', 'songEnded', 'removeQueueItem', 'toggleQrMode'];
+      if (!actions.includes(action)) throw new Error('Comando desconhecido.');
+      if (['songEnded', 'syncPauseState'].includes(action) && activeTvSocketId !== socket.id) throw new Error('Este aparelho não é o reprodutor ativo.');
+      if (action === 'setMode' && !['livre', 'desafio'].includes(payload.mode)) throw new Error('Modo inválido.');
+      if (action === 'setFixedPlayerCount' && (!/^\d{1,3}$/.test(String(payload.count)) || Number(payload.count) > 200)) throw new Error('Informe de 0 a 200 participantes.');
+      if (action === 'toggleQrMode' && !['auto', 'local'].includes(payload.mode)) throw new Error('Modo de QR inválido.');
       if (action === 'removeQueueItem') text(payload.songId, 100);
 
       if (action === 'setMode') {
