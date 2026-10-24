@@ -269,17 +269,18 @@ async function startCastWithMode(mode) {
   playJblMedia();
   socket.claimPlayback().catch(() => {});
 
+  const targetEl = (mode === 'video' ? jblClipEl : jblVideoEl);
   // Tenta abrir o seletor nativo de Chromecast (Android/Chrome)
-  if (jblVideoEl.remote && typeof jblVideoEl.remote.prompt === 'function') {
+  if (targetEl.remote && typeof targetEl.remote.prompt === 'function') {
     try {
-      await jblVideoEl.remote.prompt();
+      await targetEl.remote.prompt();
       return;
     } catch (e) {}
   }
   // Tenta abrir o seletor nativo de AirPlay (iPhone/Safari)
-  if (typeof jblVideoEl.webkitShowPlaybackTargetPicker === 'function') {
+  if (typeof targetEl.webkitShowPlaybackTargetPicker === 'function') {
     try {
-      jblVideoEl.webkitShowPlaybackTargetPicker();
+      targetEl.webkitShowPlaybackTargetPicker();
       return;
     } catch (e) {}
   }

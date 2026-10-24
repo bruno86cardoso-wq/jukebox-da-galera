@@ -226,36 +226,48 @@
     </section>
   </main>
 
-  <!-- MODAL DE PAREAR NA TV (ESCOLHA: SÓ MÚSICA OU MÚSICA + VÍDEO) -->
+  <!-- MODAL DE PAREAR NA TV (ESCOLHA: TELÃO DIRETO, CLIPE OU SÓ MÚSICA) -->
   <div id="castModal" class="qr-modal" onclick="closeCastModal()">
     <div class="qr-modal-card" onclick="event.stopPropagation()">
       <h2 style="font-size: 20px; font-weight: 900;">📺 Parear na TV</h2>
-      <p style="font-size: 13px; color: var(--text-muted);">
-        Como você prefere transmitir para a TV ou caixa de som?
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+        Como você prefere curtir a festa na TV?
       </p>
 
-      <button type="button" class="cast-choice-btn fast" onclick="startCastWithMode('audio')">
-        <span style="font-size: 28px;">🎵</span>
-        <div>
-          <div style="font-weight: 900; font-size: 15px; color: #34d399;">Só Música (Mais Rápido ⚡)</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-            Carrega na hora! Ideal para caixa JBL, Bluetooth ou som na TV sem pesar a internet.
-          </div>
+      <!-- DICA DE OURO: TELÃO NATIVO NA TV -->
+      <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 12px; margin-bottom: 12px; text-align: left;">
+        <div style="font-weight: 900; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          ⭐ MELHOR OPÇÃO: Abrir na própria TV
         </div>
-      </button>
+        <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+          Abra o navegador da TV (Samsung, LG, etc.) e acesse:<br/>
+          <strong style="color: #fff; font-size: 13px;">jukebox-da-galera.onrender.com/tv</strong><br/>
+          Mostra o clipe em tela cheia, o QR Code e toca a noite toda sem gastar a bateria do celular!
+        </div>
+      </div>
 
       <button type="button" class="cast-choice-btn video" onclick="startCastWithMode('video')">
         <span style="font-size: 28px;">🎬</span>
         <div>
-          <div style="font-weight: 900; font-size: 15px; color: #38bdf8;">Música + Vídeo (Clipe na TV)</div>
+          <div style="font-weight: 900; font-size: 15px; color: #38bdf8;">Música + Vídeo (AirPlay / Clipe)</div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-            Mostra o videoclipe oficial na TV via Chromecast, AirPlay ou espelhamento!
+            Envia o clipe para a TV via AirPlay ou Chromecast com imagem e som (evita tela preta).
           </div>
         </div>
       </button>
 
-      <button type="button" class="btn-tool" style="width: 100%; margin-top: 4px;" onclick="closeCastModal()">
-        Cancelar ✕
+      <button type="button" class="cast-choice-btn fast" onclick="startCastWithMode('audio')" style="margin-top: 8px;">
+        <span style="font-size: 28px;">🎵</span>
+        <div>
+          <div style="font-weight: 900; font-size: 15px; color: #34d399;">Só Áudio (Caixa Bluetooth / JBL)</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Sem carregar vídeo. Ideal para caixas de som Bluetooth ou JBL no celular.
+          </div>
+        </div>
+      </button>
+
+      <button type="button" class="btn-tool" style="width: 100%; margin-top: 10px;" onclick="closeCastModal()">
+        Fechar ✕
       </button>
     </div>
   </div>
