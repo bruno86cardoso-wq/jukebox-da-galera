@@ -38,6 +38,9 @@ Defina as variáveis no terminal antes de iniciar, ou nas configurações da hos
 | `DISABLE_TUNNEL` | `1` desativa o túnel automático. |
 | `DATA_DIR` | Diretório persistente; padrão `./data`. |
 | `MEDIA_ORIGIN` | Origem HTTPS de outro servidor Jukebox que fornecerá o áudio, por exemplo o túnel do computador da festa. Sem essa variável, extrai a mídia no próprio servidor. |
+| `YTDLP_CLIENT` | Cliente do extrator; `mweb` habilita a tentativa com validação de origem. Depende da disponibilidade no provedor. |
+| `YTDLP_PLUGIN_DIR` | Diretório de plugins do extrator; configurado pela imagem Docker. |
+| `MEDIA_DIAGNOSTICS_VIDEO` | ID opcional de vídeo para testar extração nativa no início, mesmo quando há `MEDIA_ORIGIN`. Remova após o diagnóstico. |
 | `TRUST_PROXY_HOPS` | Número de proxies confiáveis à frente do servidor, somente se conhecido. Afeta limites HTTP por IP. |
 
 O código aparece no terminal para o operador; não compartilhe logs contendo esse código com convidados. A sessão de anfitrião fica na aba e expira após reiniciar o servidor. A identidade de participante fica no navegador; limpar os dados ou usar outro endereço cria uma nova identidade.
@@ -78,6 +81,8 @@ Os testes usam HTTP e WebSocket locais e simulam a extração de mídia, sem ace
 A disponibilidade de músicas depende dos serviços externos e deve ser verificada no ambiente de hospedagem. Os testes locais não validam áudio real, Chromecast ou AirPlay.
 
 ## Áudio do computador com controles no Render
+
+A imagem Docker inclui o provedor de PO tokens bgutil 2.0.0 e seu plugin. O processo auxiliar escuta somente em `127.0.0.1:4416`, sem porta pública ou cookies de conta. O início aguarda a disponibilidade desse processo. Use `YTDLP_CLIENT=mweb` para testar esse caminho; a validação não garante acesso quando o YouTube bloqueia o endereço da hospedagem. Com `MEDIA_ORIGIN` definido, o áudio continua vindo da origem externa.
 
 Quando o YouTube recusa as solicitações do servidor de nuvem, execute o Jukebox no computador da festa e configure `MEDIA_ORIGIN` no Render com o endereço HTTPS do túnel desse computador. Os convidados continuam no endereço do Render; o serviço encaminha somente a mídia e preserva as requisições parciais de áudio e vídeo.
 

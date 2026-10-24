@@ -71,3 +71,15 @@ test('cliente de reprodução é selecionado com argumentos separados e lista pe
   assert.deepEqual(args.slice(0, 2), ['--extractor-args', 'youtube:player_client=web_embedded']);
   assert.throws(() => createMedia('fake', { playerClient: 'arbitrary;command' }));
 });
+
+test('cliente mweb usa plugin local e permite o tempo inicial de validação', async () => {
+  let captured;
+  const media = createMedia('fake', { origin: '', playerClient: 'mweb', pluginDir: '/opt/ytdlp-plugins',
+    run: (_, args, options, done) => {
+      captured = { args, options };
+      done(null, 'https://example.test/audio');
+    } });
+  assert.ok(await media.resolveStreamUrl('abcdefghijk'));
+  assert.deepEqual(captured.args.slice(0, 4), ['--plugin-dirs', '/opt/ytdlp-plugins', '--extractor-args', 'youtube:player_client=mweb']);
+  assert.equal(captured.options.timeout, 60000);
+});
