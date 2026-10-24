@@ -295,11 +295,15 @@ function createJukebox(options = {}) {
       if (!entry) return;
       entry.sockets.delete(socket.id);
       socket.leave(room(session.code));
-      if (entry.activeTvSocketId === socket.id) entry.activeTvSocketId = null;
-      if (session.playerId && !otherSocketsFor(entry, session.playerId)) entry.party.setConnected(session.playerId, false);
+      const wasActivePlayer = entry.activeTvSocketId === socket.id;
+      if (wasActivePlayer) entry.activeTvSocketId = null;
+      const playerId = session.playerId;
       session.code = null;
       session.isHost = false;
       session.playerId = null;
+      // setConnected já transmite; senão avisa a galera que o som ficou sem aparelho.
+      if (playerId && !otherSocketsFor(entry, playerId)) entry.party.setConnected(playerId, false);
+      else if (wasActivePlayer) broadcastState(entry);
     }
 
     function otherSocketsFor(entry, playerId) {
@@ -336,7 +340,7 @@ function createJukebox(options = {}) {
 
     on('registerTv', (_, reply) => {
       const entry = current();
-      if (!session.isHost && !entry.party._state.settings.guestsControl) throw new Error('Só o anfitrião pode assumir o som desta festa.');
+      if (!session.isHost && !entry.party.guestsControl) throw new Error('Só o anfitrião pode assumir o som desta festa.');
       if (entry.activeTvSocketId && entry.activeTvSocketId !== socket.id) io.to(entry.activeTvSocketId).emit('tvDeactivated');
       entry.activeTvSocketId = socket.id;
       reply({ ok: true });
@@ -345,7 +349,10 @@ function createJukebox(options = {}) {
 
     on('releaseTv', (_, reply) => {
       const entry = current();
-      if (entry.activeTvSocketId === socket.id) entry.activeTvSocketId = null;
+      if (entry.activeTvSocketId === socket.id) {
+        entry.activeTvSocketId = null;
+        broadcastState(entry);
+      }
       reply({ ok: true });
     });
 
