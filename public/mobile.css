@@ -253,6 +253,9 @@ html, body {
   font-size: 12px;
   font-weight: 800;
   color: #38bdf8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Animação do equalizador em tempo real */

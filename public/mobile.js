@@ -224,7 +224,7 @@ function updateJblUi() {
   btn.classList.toggle('jbl-active', jblModeActive);
   btn.textContent = jblModeActive ? '🔊 Tocando neste aparelho' : '🔊 Tocar aqui / JBL';
   document.getElementById('jblPlayerBox').style.display = jblModeActive && latestState?.currentSong ? 'block' : 'none';
-  document.getElementById('jblModeStatusText').textContent = jblMediaMode === 'audio' ? '🎵 Só áudio · sem carregar o clipe' : '🎬 Áudio e vídeo';
+  document.getElementById('jblModeStatusText').textContent = jblMediaMode === 'audio' ? '🎵 Som no Celular' : '🎬 Clipe com Vídeo';
   jblAudioEl.style.display = jblMediaMode === 'audio' ? 'block' : 'none';
   jblClipEl.style.display = jblMediaMode === 'video' ? 'block' : 'none';
   const pillAudio = document.getElementById('btnPillAudio');
