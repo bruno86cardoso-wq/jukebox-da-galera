@@ -900,7 +900,7 @@ function createJukebox(options = {}) {
   });
 
   async function start() {
-    if (!options.media && !process.env.MEDIA_ORIGIN) await ensureYtDlpBinary().catch(e => console.warn('Aviso yt-dlp:', e.message));
+    if (!options.media && (!process.env.MEDIA_ORIGIN || process.env.MEDIA_DIAGNOSTICS_VIDEO)) await ensureYtDlpBinary().catch(e => console.warn('Aviso yt-dlp:', e.message));
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(PORT, options.bind || '0.0.0.0', () => { server.removeListener('error', reject); resolve(); });
@@ -912,6 +912,10 @@ function createJukebox(options = {}) {
     console.log('📱 Link para convidados: ' + connectionInfo.localUrl);
     if (process.env.MEDIA_ORIGIN) console.log('🔊 Áudio fornecido pelo computador da festa. Mantenha-o ligado com o Jukebox aberto.');
     startCloudflareTunnel();
+    if (process.env.MEDIA_DIAGNOSTICS_VIDEO) {
+      require('./lib/media-diagnostics').runMediaDiagnostics(YT_DLP_PATH, process.env.MEDIA_DIAGNOSTICS_VIDEO)
+        .catch(error => console.warn('DIAG falhou: ' + error.message));
+    }
     return port;
   }
 

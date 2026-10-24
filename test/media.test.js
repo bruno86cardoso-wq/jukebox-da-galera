@@ -60,3 +60,14 @@ test('origem de mídia rejeita protocolos, credenciais e caminhos inesperados', 
     assert.throws(() => createMedia('fake', { origin }));
   }
 });
+
+test('cliente de reprodução é selecionado com argumentos separados e lista permitida', async () => {
+  let args;
+  const media = createMedia('fake', { origin: '', playerClient: 'web_embedded', run: (_, values, options, done) => {
+    args = values;
+    done(null, 'https://example.test/audio');
+  } });
+  assert.ok(await media.resolveStreamUrl('abcdefghijk'));
+  assert.deepEqual(args.slice(0, 2), ['--extractor-args', 'youtube:player_client=web_embedded']);
+  assert.throws(() => createMedia('fake', { playerClient: 'arbitrary;command' }));
+});
