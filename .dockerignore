@@ -1,0 +1,8 @@
+node_modules
+.git
+.env
+data
+test
+*.log
+yt-dlp
+yt-dlp.exe

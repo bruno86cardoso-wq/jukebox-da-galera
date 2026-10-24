@@ -1,0 +1,45 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createMedia } = require('../lib/media');
+
+test('extrações deduplicam, limitam concorrência e respeitam expiração', async () => {
+  let now = 1000;
+  const calls = [];
+  const media = createMedia('fake', { now: () => now, maxConcurrent: 1, maxPending: 2,
+    run: (file, args, options, done) => calls.push(done) });
+  const one = media.resolveStreamUrl('abcdefghijk');
+  assert.equal(media.resolveStreamUrl('abcdefghijk'), one);
+  const two = media.resolveStreamUrl('lmnopqrstuv');
+  assert.equal(calls.length, 1);
+  assert.equal(await media.resolveStreamUrl('01234567890'), null);
+  calls.shift()(null, 'https://example.test/audio?expire=3600');
+  assert.equal((await one).url, 'https://example.test/audio?expire=3600');
+  assert.equal(calls.length, 1);
+  calls.shift()(new Error('Unavailable'));
+  assert.equal(await two, null);
+  assert.ok(await media.resolveStreamUrl('abcdefghijk'));
+  assert.equal(calls.length, 0);
+  now += 2 * 60 * 60 * 1000;
+  const renewed = media.resolveStreamUrl('abcdefghijk');
+  assert.equal(calls.length, 1);
+  calls.shift()(null, 'https://example.test/new');
+  assert.equal((await renewed).url, 'https://example.test/new');
+});
+
+test('áudio é extraído sozinho e falha de vídeo não invalida o áudio', async () => {
+  const calls = [];
+  const media = createMedia('fake', { run: (_, args, options, done) => calls.push({ args, done }) });
+  const audio = media.resolveStreamUrl('abcdefghijk');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].args[calls[0].args.indexOf('-f') + 1], 'bestaudio[ext=m4a]/bestaudio');
+  calls[0].done(null, 'https://example.test/audio');
+  const ready = await audio;
+  assert.equal(ready.kind, 'audio');
+  const video = media.resolveStreamUrl('abcdefghijk', 'video');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].args[calls[1].args.indexOf('-f') + 1], 'best[ext=mp4]/best');
+  calls[1].done(new Error('No video format'));
+  assert.equal(await video, null);
+  assert.equal(await media.resolveStreamUrl('abcdefghijk'), ready);
+  assert.equal(calls.length, 2);
+});

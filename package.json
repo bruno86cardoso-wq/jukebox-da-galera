@@ -1,11 +1,11 @@
 {
   "name": "jukebox-galera",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Jukebox colaborativa com celular, telão e votação em tempo real",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +17,8 @@
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.4",
     "yt-search": "^2.13.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

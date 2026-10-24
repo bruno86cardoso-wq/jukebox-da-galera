@@ -4,3 +4,9 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: HOST_PIN
+        sync: false
+      - key: DISABLE_TUNNEL
+        value: "1"
