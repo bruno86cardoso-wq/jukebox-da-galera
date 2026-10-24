@@ -6,16 +6,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { fixture, song } = require('./helpers');
 
-test('convidados não controlam anfitrião e payloads inválidos não derrubam o servidor', async t => {
+test('payloads inválidos não derrubam o servidor e comandos são aceitos', async t => {
   const f = await fixture(t);
   const client = await f.client();
   for (const event of ['registerPlayer', 'addSong', 'voteSong', 'hostAction', 'sendReaction', 'registerTv']) {
     assert.equal((await client.call(event, null)).ok, false);
   }
-  assert.equal((await client.call('hostAction', { action: 'setMode', payload: { mode: 'desafio' } })).ok, false);
-  assert.equal((await client.call('registerTv', {})).ok, false);
-  assert.equal((await client.call('authenticateHost', { pin: 'wrong' })).ok, false);
-  assert.equal((await client.call('authenticateHost', { pin: '12345678' })).ok, true);
+  assert.equal((await client.call('authenticateHost', {})).ok, true);
   assert.equal((await client.call('hostAction', { action: 'setMode' })).ok, false);
   assert.equal((await client.call('hostAction', { action: 'setMode', payload: { mode: 'desafio' } })).ok, true);
   assert.equal(f.jukebox.getPublicState().mode, 'desafio');
@@ -29,7 +26,6 @@ test('identidade vem da sessão, e votos respeitam modo, música e duplicidade',
   const a = (await alice.call('registerPlayer', { name: 'Alice' })).player;
   const b = (await bob.call('registerPlayer', { name: 'Bob', playerId: a.id })).player;
   assert.notEqual(a.id, b.id);
-  await alice.call('authenticateHost', { pin: '12345678' });
   await alice.call('addSong', { song: song(), playerId: b.id });
   const current = f.jukebox.getPublicState().currentSong;
   assert.equal(current.addedBy.id, a.id);
@@ -48,8 +44,6 @@ test('duas pessoas conseguem vetar e apenas o aparelho ativo encerra músicas', 
   const bob = await f.client();
   await alice.call('registerPlayer', { name: 'Alice' });
   await bob.call('registerPlayer', { name: 'Bob' });
-  await alice.call('authenticateHost', { pin: '12345678' });
-  await bob.call('authenticateHost', { pin: '12345678' });
   await alice.call('hostAction', { action: 'setMode', payload: { mode: 'desafio' } });
   await alice.call('addSong', { song: song() });
   const current = f.jukebox.getPublicState().currentSong;

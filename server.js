@@ -17,8 +17,6 @@ function createJukebox(options = {}) {
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server, { maxHttpBufferSize: 16384 });
-  const hostPin = options.hostPin || process.env.HOST_PIN || String(randomInt(10000000, 100000000));
-  if (typeof hostPin !== 'string' || hostPin.length < 6 || hostPin.length > 128) throw new Error('HOST_PIN deve ter entre 6 e 128 caracteres.');
   const hostSession = randomBytes(32).toString('hex');
   const allow = createRateLimiter();
   const playerSockets = new Map();
@@ -33,7 +31,6 @@ function createJukebox(options = {}) {
 
   app.use(express.json({ limit: '16kb' }));
   app.use(express.static(path.join(__dirname, 'public')));
-
   const PORT = options.port ?? Number(process.env.PORT || 3456);
   const IS_WIN = process.platform === 'win32';
   const YT_DLP_PATH = path.join(__dirname, IS_WIN ? 'yt-dlp.exe' : 'yt-dlp');
@@ -573,7 +570,7 @@ function createJukebox(options = {}) {
   io.on('connection', (socket) => {
     let currentPlayerId = null;
     const identity = playerIdForToken(socket.handshake.auth?.playerToken);
-    let isHost = secretEquals(socket.handshake.auth?.hostToken, hostSession);
+    let isHost = true;
     const address = socket.request ? socket.request.socket.remoteAddress : socket.handshake.address;
 
     function on(event, handler, limit = 60) {
@@ -591,11 +588,9 @@ function createJukebox(options = {}) {
       });
     }
 
-    on('authenticateHost', ({ pin, token }, reply) => {
-      if (!secretEquals(token, hostSession) && !secretEquals(pin, hostPin)) throw new Error('Código de anfitrião incorreto.');
-      isHost = true;
+    on('authenticateHost', (_, reply) => {
       reply({ ok: true, token: hostSession });
-    }, 10);
+    }, 60);
 
     on('releaseTv', (_, reply) => {
       if (activeTvSocketId === socket.id) activeTvSocketId = null;
@@ -606,7 +601,6 @@ function createJukebox(options = {}) {
 
     // Garante que apenas UMA aba/tela de Telão toque áudio por vez!
     on('registerTv', (_, reply) => {
-      if (!isHost) throw new Error('Ative os controles de anfitrião para reproduzir.');
       if (activeTvSocketId && activeTvSocketId !== socket.id) {
         io.to(activeTvSocketId).emit('tvDeactivated');
       }
@@ -821,7 +815,6 @@ function createJukebox(options = {}) {
     }, 30);
 
     on('hostAction', ({ action, payload = {} }, reply) => {
-      if (!isHost) throw new Error('Este controle é exclusivo do anfitrião.');
       if (!isRecord(payload)) throw new Error('Comando inválido.');
       const actions = ['setMode', 'setFixedPlayerCount', 'skipSong', 'previousSong', 'togglePause', 'syncPauseState', 'songEnded', 'removeQueueItem', 'toggleQrMode'];
       if (!actions.includes(action)) throw new Error('Comando desconhecido.');
@@ -908,7 +901,6 @@ function createJukebox(options = {}) {
     const port = server.address().port;
     if (!CLOUD_PUBLIC_URL) connectionInfo.localUrl = `http://${getLocalIp()}:${port}`;
     console.log('🎵 Jukebox da Galera: http://localhost:' + port + '/tv');
-    console.log('🔑 Código do anfitrião: ' + hostPin);
     console.log('📱 Link para convidados: ' + connectionInfo.localUrl);
     if (process.env.MEDIA_ORIGIN) console.log('🔊 Áudio fornecido pelo computador da festa. Mantenha-o ligado com o Jukebox aberto.');
     startCloudflareTunnel();
