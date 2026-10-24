@@ -819,7 +819,7 @@ function createJukebox(options = {}) {
     on('sendReaction', ({ emoji }, reply) => {
       const player = players.get(currentPlayerId);
       if (!player) throw new Error('Entre na festa primeiro.');
-      if (!['🔥', '👍', '👎', '❤️', '😂', '🍻', '💃', '💩'].includes(emoji)) throw new Error('Reação inválida.');
+      if (!['🔥', '👍', '👎', '❤️', '😂', '🍻', '💃', '💩', '🍅', '🤮', '🤡'].includes(emoji)) throw new Error('Reação inválida.');
       io.emit('liveReaction', {
         emoji: emoji || '🔥',
         playerName: player.name

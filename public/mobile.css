@@ -893,13 +893,13 @@ html, body {
 }
 
 .btn-reaction-dislike {
-  border-color: rgba(148, 163, 184, 0.35);
-  background: linear-gradient(135deg, rgba(100, 116, 139, 0.2), rgba(51, 65, 85, 0.3));
-  color: #cbd5e1;
+  border-color: rgba(217, 119, 6, 0.45);
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.22), rgba(120, 53, 15, 0.3));
+  color: #fde68a;
 }
 
 .btn-reaction-dislike:active {
-  background: linear-gradient(135deg, rgba(100, 116, 139, 0.35), rgba(51, 65, 85, 0.45));
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.4), rgba(120, 53, 15, 0.5));
 }
 
 .floating-emoji {
