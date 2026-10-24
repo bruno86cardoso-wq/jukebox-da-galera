@@ -254,12 +254,11 @@ html, body {
   gap: 6px;
   margin-top: 6px;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  white-space: nowrap;
 }
 
 .jbl-media-toggle:active {
   transform: scale(0.96);
-}
-  white-space: nowrap;
 }
 
 .jbl-player-box video {

@@ -102,9 +102,9 @@ socket.on('playerCommand', ({ command }) => {
 });
 
 async function toggleJblMode() {
-  if (!jblModeActive && !await socket.claimPlayback()) return;
-  jblModeActive = !jblModeActive;
-  if (jblModeActive) {
+  if (!jblModeActive) {
+    jblModeActive = true;
+    updateJblUi();
     if (navigator.wakeLock) {
       navigator.wakeLock.request('screen').catch(() => {});
     }
@@ -112,7 +112,17 @@ async function toggleJblMode() {
     if (latestState && latestState.currentSong) {
       syncJblPlayer(latestState.currentSong);
     }
+    // Desbloqueia áudio de imediato no contexto do toque do usuário
+    playJblMedia();
+    const claimed = await socket.claimPlayback();
+    if (!claimed) {
+      jblModeActive = false;
+      syncJblPlayer(null);
+      updateJblUi();
+      return;
+    }
   } else {
+    jblModeActive = false;
     socket.emit('releaseTv', {});
     jblRecovery.reset();
     jblCurrentSongId = null;
@@ -122,8 +132,8 @@ async function toggleJblMode() {
     jblVideoEl.removeAttribute('src');
     jblVideoEl.load();
     showToast('🔇 Modo JBL desligado neste celular.');
+    updateJblUi();
   }
-  updateJblUi();
 }
 
 function setJblMediaMode(mode) {
@@ -160,7 +170,6 @@ function closeCastModal() {
 }
 
 async function startCastWithMode(mode) {
-  if (!jblModeActive && !await socket.claimPlayback()) return;
   closeCastModal();
   jblMediaMode = mode; // 'audio' ou 'video'
 
@@ -177,6 +186,8 @@ async function startCastWithMode(mode) {
   if (latestState && latestState.currentSong) {
     syncJblPlayer(latestState.currentSong);
   }
+  playJblMedia();
+  socket.claimPlayback().catch(() => {});
 
   // Tenta abrir o seletor nativo de Chromecast (Android/Chrome)
   if (jblVideoEl.remote && typeof jblVideoEl.remote.prompt === 'function') {
@@ -312,6 +323,14 @@ async function sharePartyLink() {
     await navigator.clipboard.writeText(partyInviteUrl);
     showToast('🔗 Link da festa copiado!');
   }
+}
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('click', (e) => {
+    if (jblModeActive && jblVideoEl && jblVideoEl.paused && !latestState?.isPaused && jblCurrentSongId && jblPlaybackState === 'blocked') {
+      playJblMedia();
+    }
+  }, { passive: true });
 }
 
 if (!myPlayerId) {
