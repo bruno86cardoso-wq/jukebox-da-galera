@@ -43,3 +43,20 @@ test('áudio é extraído sozinho e falha de vídeo não invalida o áudio', asy
   assert.equal(await media.resolveStreamUrl('abcdefghijk'), ready);
   assert.equal(calls.length, 2);
 });
+
+test('origem externa entrega apenas o formato solicitado sem extrair no servidor de nuvem', async () => {
+  let extractions = 0;
+  const media = createMedia('fake', { origin: 'https://audio.example.test', run: () => extractions++ });
+  const audio = await media.resolveStreamUrl('abcdefghijk');
+  const video = await media.resolveStreamUrl('abcdefghijk', 'video');
+  assert.equal(audio.url, 'https://audio.example.test/api/audio/abcdefghijk');
+  assert.equal(video.url, 'https://audio.example.test/api/stream/abcdefghijk');
+  assert.equal(extractions, 0);
+  assert.equal(await media.resolveStreamUrl('../outside'), null);
+});
+
+test('origem de mídia rejeita protocolos, credenciais e caminhos inesperados', () => {
+  for (const origin of ['http://audio.example.test', 'https://user:password@audio.example.test', 'https://audio.example.test/private', 'https://audio.example.test/?secret=1']) {
+    assert.throws(() => createMedia('fake', { origin }));
+  }
+});

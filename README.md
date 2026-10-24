@@ -37,6 +37,7 @@ Defina as variáveis no terminal antes de iniciar, ou nas configurações da hos
 | `PUBLIC_URL` | URL pública para o QR Code. Render e Railway também são detectados. |
 | `DISABLE_TUNNEL` | `1` desativa o túnel automático. |
 | `DATA_DIR` | Diretório persistente; padrão `./data`. |
+| `MEDIA_ORIGIN` | Origem HTTPS de outro servidor Jukebox que fornecerá o áudio, por exemplo o túnel do computador da festa. Sem essa variável, extrai a mídia no próprio servidor. |
 | `TRUST_PROXY_HOPS` | Número de proxies confiáveis à frente do servidor, somente se conhecido. Afeta limites HTTP por IP. |
 
 O código aparece no terminal para o operador; não compartilhe logs contendo esse código com convidados. A sessão de anfitrião fica na aba e expira após reiniciar o servidor. A identidade de participante fica no navegador; limpar os dados ou usar outro endereço cria uma nova identidade.
@@ -75,3 +76,9 @@ Os testes usam HTTP e WebSocket locais e simulam a extração de mídia, sem ace
 - `public/`: HTML, CSS e JavaScript separados para celular e telão, com helpers em `common.js`.
 
 A disponibilidade de músicas depende dos serviços externos e deve ser verificada no ambiente de hospedagem. Os testes locais não validam áudio real, Chromecast ou AirPlay.
+
+## Áudio do computador com controles no Render
+
+Quando o YouTube recusa as solicitações do servidor de nuvem, execute o Jukebox no computador da festa e configure `MEDIA_ORIGIN` no Render com o endereço HTTPS do túnel desse computador. Os convidados continuam no endereço do Render; o serviço encaminha somente a mídia e preserva as requisições parciais de áudio e vídeo.
+
+O computador e o Jukebox precisam permanecer ligados e conectados durante a festa. O túnel temporário muda quando o servidor local reinicia: nesse caso, atualize `MEDIA_ORIGIN` no Render com o novo endereço exibido no terminal. Não configure `MEDIA_ORIGIN` no computador que extrai a mídia, nem aponte o Render para ele mesmo.
