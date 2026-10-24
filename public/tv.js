@@ -11,6 +11,13 @@ let currentQrMode = 'auto';
 let lastState = null;
 let audioUnlocked = false;
 let isPrimaryTv = false;
+let lastYou = null;
+let initialPartyCode = readPartyFromUrl() || (() => {
+  try {
+    const last = localStorage.getItem('jukebox_last_party');
+    return last && getHostKey(last) ? last : null; // reabre a última festa que este telão criou
+  } catch { return null; }
+})();
 let tvMediaMode = 'video'; // Padrão no Telão é Vídeo + Áudio! (se falhar, cai para Capa + Áudio)
 let tvLoadedMediaMode = null;
 
@@ -54,7 +61,35 @@ async function claimTv() {
   if (isPrimaryTv) syncVideoPlayer(lastState?.currentSong);
   return isPrimaryTv;
 }
-socket.on('connect', claimTv);
+
+// Entra na festa do link (ou na última criada aqui); se não existir, cria uma nova.
+async function ensureParty() {
+  const code = socket.party.code || initialPartyCode;
+  if (code) {
+    const joined = await socket.joinParty(code);
+    if (joined.ok) return partyReady(joined);
+    partyNotice('A festa ' + code + ' não existe mais. Criando uma nova…');
+  }
+  const created = await socket.createParty();
+  if (created.ok) return partyReady(created);
+  partyNotice(created.error || 'Não foi possível criar a festa.');
+  return false;
+}
+
+function partyReady(result) {
+  initialPartyCode = result.code;
+  setPartyInUrl(result.code);
+  for (const id of ['partyCodeBadge', 'qrPartyCode', 'settingsCode']) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = result.code;
+  }
+  refreshQrCode(currentQrMode);
+  return true;
+}
+
+socket.on('connect', async () => {
+  if (await ensureParty()) claimTv();
+});
 socket.on('disconnect', () => {
   isPrimaryTv = false;
   stopTvPlayback();
@@ -293,7 +328,8 @@ function playSoundEffect(type) {
 
 async function refreshQrCode(mode) {
   try {
-    const res = await fetch(`/api/qrcode?mode=${mode || currentQrMode}`);
+    if (!socket.party.code) return;
+    const res = await fetch(`/api/qrcode?festa=${encodeURIComponent(socket.party.code)}&mode=${mode || currentQrMode}`);
     const data = await res.json();
     document.getElementById('qrImage').src = data.dataUrl;
     document.getElementById('qrUrlText').textContent = data.url;
@@ -373,9 +409,22 @@ socket.on('playerCommand', ({ command }) => {
   }
 });
 
-socket.on('stateUpdate', (state) => {
+const mysteryClock = createMysteryClock(seconds => {
+  const badge = document.getElementById('requesterBadge');
+  if (badge && badge.classList.contains('mystery')) badge.innerHTML = `<span>🕵️ Mistério! Revela em ${seconds}s...</span>`;
+});
+
+socket.on('stateUpdate', (state, you) => {
   const prevUrl = lastState?.connection?.activeQrUrl;
+  const prevSongId = lastState?.currentSong?.id;
   lastState = state;
+  lastYou = you || null;
+  document.body.classList.toggle('is-host', Boolean(you?.isHost));
+  renderTheme(state.theme);
+  renderDedication(state.currentSong);
+  if (state.currentSong?.id !== prevSongId) updateAmbient(state.currentSong);
+  const guestsInput = document.getElementById('guestsControlInput');
+  if (guestsInput && state.settings) guestsInput.checked = Boolean(state.settings.guestsControl);
 
   // Se já tinha música tocando quando abriu a tela, fecha o modal inicial automaticamente
   if (state.currentSong && document.getElementById('startModal').style.display !== 'none') {
@@ -437,7 +486,9 @@ socket.on('stateUpdate', (state) => {
     if (!s.isRevealed && isDesafio) {
       badge.className = 'requester-badge mystery';
       badge.innerHTML = `<span>🕵️ Mistério! Revela em ${s.mysteryRemainingSeconds}s...</span>`;
+      mysteryClock.update(s, state.isPaused);
     } else {
+      mysteryClock.update(null);
       badge.className = 'requester-badge revealed';
       badge.innerHTML = `<span>Pedida por: ${escapeHtml(s.addedBy.avatar || '🎧')} ${escapeHtml(s.addedBy.name)}</span>`;
     }
@@ -481,7 +532,7 @@ socket.on('stateUpdate', (state) => {
               <span style="color:#a78bfa;">${who}</span>
             </div>
           </div>
-          <button class="btn-action" style="padding:4px 8px; font-size:11px;" data-remove-song="${escapeHtml(item.id)}" title="Remover da fila">✕</button>
+          <button class="btn-action host-only" style="padding:4px 8px; font-size:11px;" data-remove-song="${escapeHtml(item.id)}" title="Remover da fila">✕</button>
         </div>
       `;
     }).join('');
@@ -498,6 +549,7 @@ socket.on('stateUpdate', (state) => {
         ? `<span class="tag-ranzinza">😡 RANZINZA</span>`
         : '';
       const ammoIcons = isDesafio ? '💣'.repeat(p.ammo) : '';
+      const badges = (p.achievements || []).map(a => `<span class="ach-icon" title="${escapeHtml(a.name)}">${escapeHtml(a.icon)}</span>`).join('');
       const rightInfo = isDesafio ? `${p.score} pts` : `${p.songsPlayed} pedidas`;
       return `
         <div class="rank-item">
@@ -505,6 +557,7 @@ socket.on('stateUpdate', (state) => {
           <div class="rank-name">
             <span>${escapeHtml(p.avatar)} ${escapeHtml(p.name)}</span>
             ${ranzinzaBadge}
+            <span class="ach-row">${badges}</span>
             <span style="font-size:11px; opacity:0.75;">${ammoIcons}</span>
           </div>
           <div class="rank-score">${rightInfo}</div>
@@ -529,13 +582,192 @@ socket.on('songVetoed', (info) => {
   }, 4200);
 });
 
-socket.on('liveReaction', ({ emoji }) => {
-  const el = document.createElement('div');
-  el.className = 'floating-emoji';
-  el.textContent = emoji;
-  el.style.left = `${Math.floor(15 + Math.random() * 70)}%`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+const recentReactions = [];
+socket.on('liveReaction', ({ emoji, playerName, avatar }) => {
+  spawnEmoji(emoji, playerName);
+  // Muita gente reagindo junto vira "chuva" + tremidinha no telão.
+  const now = Date.now();
+  recentReactions.push(now);
+  while (recentReactions.length && now - recentReactions[0] > 4000) recentReactions.shift();
+  if (recentReactions.length >= 6 && !document.body.classList.contains('reaction-burst')) {
+    document.body.classList.add('reaction-burst');
+    for (let i = 0; i < 24; i++) setTimeout(() => spawnEmoji(emoji, null, true), i * 60);
+    setTimeout(() => document.body.classList.remove('reaction-burst'), 1600);
+    recentReactions.length = 0;
+  }
 });
 
-refreshQrCode('auto');
+function spawnEmoji(emoji, name, rain = false) {
+  const el = document.createElement('div');
+  el.className = rain ? 'floating-emoji rain' : 'floating-emoji';
+  el.textContent = emoji;
+  if (name && !rain) {
+    const tag = document.createElement('small');
+    tag.textContent = name;
+    el.appendChild(tag);
+  }
+  el.style.left = `${Math.floor(5 + Math.random() * 90)}%`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ==========================================
+// TEMA, DEDICATÓRIA E FUNDO QUE ACOMPANHA A CAPA
+// ==========================================
+function renderTheme(theme) {
+  const el = document.getElementById('themeBanner');
+  if (!el) return;
+  el.hidden = !theme;
+  if (theme) el.innerHTML = `🎨 Rodada temática: <strong>${escapeHtml(theme)}</strong>`;
+}
+
+function renderDedication(song) {
+  const el = document.getElementById('dedicationBanner');
+  if (!el) return;
+  if (!song || !song.dedication) { el.hidden = true; el.dataset.song = ''; return; }
+  if (el.dataset.song === song.id + (song.isRevealed ? 'r' : '')) return;
+  el.dataset.song = song.id + (song.isRevealed ? 'r' : '');
+  const from = song.isRevealed ? ` <small>— ${escapeHtml(song.addedBy.avatar)} ${escapeHtml(song.addedBy.name)}</small>` : ' <small>— 🕵️ alguém da festa</small>';
+  el.innerHTML = `💌 ${escapeHtml(song.dedication)}${from}`;
+  el.hidden = false;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+
+async function updateAmbient(song) {
+  const root = document.documentElement;
+  if (!song) { root.style.removeProperty('--ambient'); return; }
+  const rgb = await coverColor(song.videoId);
+  if (!rgb || lastState?.currentSong?.id !== song.id) return;
+  root.style.setProperty('--ambient', `rgb(${rgb.join(',')})`);
+}
+
+socket.on('themeChanged', ({ theme }) => {
+  const el = document.getElementById('themeBanner');
+  if (theme && el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+});
+
+// ==========================================
+// CONQUISTAS
+// ==========================================
+const achievementQueue = [];
+socket.on('achievement', item => {
+  achievementQueue.push(item);
+  if (achievementQueue.length === 1) showNextAchievement();
+});
+function showNextAchievement() {
+  const item = achievementQueue[0];
+  const el = document.getElementById('achievementPopup');
+  if (!item || !el) return;
+  el.innerHTML = `<div class="ach-big">${escapeHtml(item.achievement.icon)}</div>
+    <div><small>CONQUISTA DESBLOQUEADA</small>
+    <strong>${escapeHtml(item.player.avatar)} ${escapeHtml(item.player.name)} · ${escapeHtml(item.achievement.name)}</strong>
+    <span>${escapeHtml(item.achievement.desc)}</span></div>`;
+  el.hidden = false;
+  playSoundEffect('reveal');
+  setTimeout(() => {
+    el.hidden = true;
+    achievementQueue.shift();
+    setTimeout(showNextAchievement, 300);
+  }, 3800);
+}
+
+// ==========================================
+// CONFIGURAÇÕES DO ANFITRIÃO
+// ==========================================
+function openSettings() {
+  document.getElementById('settingsModal').hidden = false;
+}
+function closeSettings(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('settingsModal').hidden = true;
+  document.getElementById('hostQrImage').hidden = true;
+}
+function setGuestsControl(value) {
+  socket.emit('hostAction', { action: 'setSettings', payload: { guestsControl: Boolean(value) } });
+}
+function setTheme(theme) {
+  socket.emit('hostAction', { action: 'setTheme', payload: { theme: String(theme || '').slice(0, 40) } });
+}
+async function showHostQr() {
+  const key = socket.party.hostKey;
+  if (!key) return partyNotice('Este aparelho não é o anfitrião.');
+  try {
+    const res = await fetch(`/api/qrcode?festa=${encodeURIComponent(socket.party.code)}&chave=${encodeURIComponent(key)}&mode=${currentQrMode}`);
+    const data = await res.json();
+    const img = document.getElementById('hostQrImage');
+    img.src = data.dataUrl;
+    img.hidden = false;
+  } catch {}
+}
+let newPartyArmed = false;
+async function startNewParty() {
+  const btn = document.getElementById('btnNewParty');
+  if (!newPartyArmed) {
+    newPartyArmed = true;
+    btn.textContent = 'Toque de novo para confirmar';
+    setTimeout(() => { newPartyArmed = false; btn.textContent = 'Começar uma festa nova'; }, 4000);
+    return;
+  }
+  newPartyArmed = false;
+  const created = await socket.createParty();
+  if (!created.ok) return;
+  partyReady(created);
+  closeSettings();
+  await claimTv();
+}
+
+// ==========================================
+// RESUMO DA FESTA
+// ==========================================
+function showSummaryToAll() {
+  closeSettings();
+  socket.emit('hostAction', { action: 'showSummary' });
+}
+function requestSummary() {
+  socket.emit('getSummary', {}, result => { if (result?.ok) showSummary(result.summary); });
+}
+socket.on('partySummary', showSummary);
+
+let summaryTimer = null;
+function showSummary(summary) {
+  if (!summary) return;
+  const slides = [...summary.cards];
+  if (summary.achievements.length) slides.push({ icon: '🏅', title: 'Conquistas da noite', achievements: summary.achievements });
+  const overlay = document.getElementById('summaryOverlay');
+  const slideEl = document.getElementById('summarySlide');
+  const dots = document.getElementById('summaryDots');
+  let index = 0;
+  function render() {
+    const card = slides[index];
+    slideEl.classList.remove('in');
+    void slideEl.offsetWidth;
+    slideEl.innerHTML = card.achievements
+      ? `<div class="summary-icon">${card.icon}</div><h2>${escapeHtml(card.title)}</h2>
+         <div class="summary-ach">${card.achievements.slice(0, 8).map(p => `<div><strong>${escapeHtml(p.avatar)} ${escapeHtml(p.name)}</strong> ${p.badges.map(b => `<span title="${escapeHtml(b.name)}">${escapeHtml(b.icon)}</span>`).join('')}</div>`).join('')}</div>`
+      : `<div class="summary-icon">${escapeHtml(card.icon)}</div><h2>${escapeHtml(card.title)}</h2>
+         <div class="summary-value">${escapeHtml(card.value)}</div><p>${escapeHtml(card.sub || '')}</p>`;
+    slideEl.classList.add('in');
+    dots.innerHTML = slides.map((_, i) => `<span class="${i === index ? 'on' : ''}"></span>`).join('');
+  }
+  clearInterval(summaryTimer);
+  overlay.hidden = false;
+  render();
+  summaryTimer = setInterval(() => {
+    index += 1;
+    if (index >= slides.length) { clearInterval(summaryTimer); return; }
+    render();
+  }, 5000);
+  overlay.onclick = event => {
+    if (event.target.closest('.summary-close')) return;
+    index = Math.min(slides.length - 1, index + 1);
+    render();
+  };
+}
+function closeSummary() {
+  clearInterval(summaryTimer);
+  document.getElementById('summaryOverlay').hidden = true;
+}
+
+// O QR é carregado assim que a festa estiver definida (ver partyReady).

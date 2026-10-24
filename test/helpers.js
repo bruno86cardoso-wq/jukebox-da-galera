@@ -15,8 +15,9 @@ async function connect(port, token = randomBytes(32).toString('hex')) {
     else if (data === '2') ws.send('3');
     else if (data.startsWith('40')) events.emit('ready');
     else if (data.startsWith('42')) {
-      const [event, payload] = JSON.parse(data.slice(2));
-      events.emit(event, payload);
+      const [event, payload, extra] = JSON.parse(data.slice(2));
+      if (event === 'stateUpdate') { client.state = payload; client.you = extra; }
+      events.emit(event, payload, extra);
     } else if (data.startsWith('43')) {
       const split = data.indexOf('[');
       const ack = Number(data.slice(2, split));
@@ -24,8 +25,7 @@ async function connect(port, token = randomBytes(32).toString('hex')) {
       pending.delete(ack);
     }
   });
-  await ready;
-  return {
+  const client = {
     events, token,
     call(event, payload) {
       return new Promise((resolve, reject) => {
@@ -42,15 +42,35 @@ async function connect(port, token = randomBytes(32).toString('hex')) {
       await closed;
     }
   };
+  await ready;
+  return client;
 }
 
 async function fixture(t, options = {}) {
-  const jukebox = createJukebox({ port: 0, bind: '127.0.0.1', hostPin: '12345678', tunnel: false,
-    statePath: null, media: { resolveStreamUrl: async () => null, serve: (_, res) => res.status(503).end() }, ...options });
+  const jukebox = createJukebox({ port: 0, bind: '127.0.0.1', tunnel: false, log: () => {},
+    dataDir: null, media: { resolveStreamUrl: async () => null, serve: (_, res) => res.status(503).end() }, ...options });
   const port = await jukebox.start();
   const clients = [];
   t.after(async () => { await Promise.all(clients.map(c => c.close())); await jukebox.stop(); });
-  return { jukebox, port, async client(token) { const client = await connect(port, token); clients.push(client); return client; } };
+  const f = {
+    jukebox, port,
+    async client(token) { const client = await connect(port, token); clients.push(client); return client; },
+    // Cria uma festa e devolve o aparelho do anfitrião já dentro dela.
+    async host(token) {
+      const client = await f.client(token);
+      const created = await client.call('createParty', {});
+      const joined = await client.call('joinParty', { code: created.code, hostKey: created.hostKey });
+      if (!joined.ok || !joined.isHost) throw new Error('Falha ao criar festa de teste');
+      return Object.assign(client, { code: created.code, hostKey: created.hostKey });
+    },
+    async guest(code, token) {
+      const client = await f.client(token);
+      const joined = await client.call('joinParty', { code });
+      if (!joined.ok) throw new Error(joined.error);
+      return client;
+    }
+  };
+  return f;
 }
 
 const song = (id = 'abcdefghijk') => ({ videoId: id, title: 'Música de teste', artist: 'Artista', duration: '3:00' });

@@ -55,7 +55,29 @@ function createPartySocket() {
     });
   }
 
-  socket.requestHost = () => Promise.resolve(true);
+  // ---------- Festa atual (código + chave do anfitrião) ----------
+  socket.party = { code: null, hostKey: null, isHost: false };
+  socket.joinParty = async (code, hostKey = getHostKey(code)) => {
+    const result = await request('joinParty', { code, hostKey: hostKey || undefined });
+    if (result.ok) {
+      socket.party = { code: result.code, hostKey: result.isHost ? hostKey : null, isHost: result.isHost };
+      try { localStorage.setItem('jukebox_last_party', result.code); } catch {}
+    }
+    return result;
+  };
+  socket.createParty = async () => {
+    const created = await request('createParty', {});
+    if (!created.ok) return created;
+    saveHostKey(created.code, created.hostKey);
+    return socket.joinParty(created.code, created.hostKey);
+  };
+  // Ao reconectar, volta para a mesma festa antes de qualquer outro evento.
+  socket.on('connect', () => {
+    if (!socket.party.code) return;
+    emit('joinParty', { code: socket.party.code, hostKey: socket.party.hostKey || getHostKey(socket.party.code) || undefined }, result => {
+      if (!result?.ok) socket.onPartyLost?.(result);
+    });
+  });
   socket.claimPlayback = async () => {
     const result = await request('registerTv', {});
     if (!result.ok) partyNotice(result.error);
@@ -72,7 +94,7 @@ function createPartySocket() {
       })();
       return socket;
     }
-    if (['registerPlayer', 'addSong', 'voteSong', 'sendReaction', 'releaseTv'].includes(event)) {
+    if (['registerPlayer', 'addSong', 'voteSong', 'sendReaction', 'releaseTv', 'getSummary'].includes(event)) {
       request(event, data).then(result => {
         if (!result.ok) partyNotice(result.error);
         callback?.(result);
@@ -88,6 +110,81 @@ function createPartySocket() {
   socket.on('connect_error', () => { status.textContent = 'Sem conexão'; });
   socket.on('actionError', result => partyNotice(result.error));
   return socket;
+}
+
+function readHostKeys() {
+  try { return JSON.parse(localStorage.getItem('jukebox_host_keys') || '{}') || {}; } catch { return {}; }
+}
+function getHostKey(code) { return code ? readHostKeys()[code] || null : null; }
+function saveHostKey(code, key) {
+  if (!code || !/^[a-f0-9]{20,128}$/.test(key || '')) return;
+  const keys = readHostKeys();
+  keys[code] = key;
+  try { localStorage.setItem('jukebox_host_keys', JSON.stringify(keys)); } catch {}
+}
+
+/** Lê ?festa= e ?chave= da URL, guarda a chave e tira ela da barra de endereço. */
+function readPartyFromUrl() {
+  const params = new URLSearchParams(window.location.search || '');
+  const code = (params.get('festa') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || null;
+  const key = params.get('chave');
+  if (code && key) {
+    saveHostKey(code, key);
+    params.delete('chave');
+    try { history.replaceState(null, '', window.location.pathname + '?' + params.toString()); } catch {}
+  }
+  return code;
+}
+
+function setPartyInUrl(code) {
+  try { history.replaceState(null, '', window.location.pathname + '?festa=' + encodeURIComponent(code)); } catch {}
+}
+
+/** Contagem regressiva do mistério feita no próprio aparelho (o servidor não manda nada a cada segundo). */
+function createMysteryClock(render) {
+  let base = null;
+  let timer = null;
+  function update(song, paused) {
+    clearInterval(timer);
+    timer = null;
+    if (!song || song.isRevealed) { base = null; return; }
+    base = { id: song.id, remaining: song.mysteryRemainingSeconds, at: Date.now(), paused };
+    render(base.remaining);
+    if (!paused) timer = setInterval(() => render(remaining()), 500);
+  }
+  function remaining() {
+    if (!base) return 0;
+    const passed = base.paused ? 0 : Math.floor((Date.now() - base.at) / 1000);
+    return Math.max(0, base.remaining - passed);
+  }
+  return { update, remaining };
+}
+
+/** Cor média da capa (servida pelo próprio servidor para o canvas poder ler). */
+function coverColor(videoId) {
+  return new Promise(resolve => {
+    if (!videoId || typeof Image === 'undefined') return resolve(null);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 24; canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 24, 24);
+        const data = ctx.getImageData(0, 0, 24, 24).data;
+        let r = 0, g = 0, b = 0, weight = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const max = Math.max(data[i], data[i + 1], data[i + 2]);
+          const min = Math.min(data[i], data[i + 1], data[i + 2]);
+          const w = 1 + (max - min) / 32; // valoriza pixels coloridos, não cinza
+          r += data[i] * w; g += data[i + 1] * w; b += data[i + 2] * w; weight += w;
+        }
+        resolve([r, g, b].map(v => Math.round(v / weight)));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = '/api/thumb/' + videoId;
+  });
 }
 
 function attachMediaRecovery(video, { isActive, source, play, failed }) {

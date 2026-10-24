@@ -2,6 +2,8 @@ const socket = createPartySocket();
 let myPlayerId = localStorage.getItem('jukebox_player_id');
 let myPlayerName = localStorage.getItem('jukebox_player_name') || '';
 let latestState = null;
+let lastYou = null;
+let partyCode = readPartyFromUrl() || (() => { try { return localStorage.getItem('jukebox_last_party'); } catch { return null; } })();
 let currentSearchResults = [];
 let jblModeActive = false;
 let jblMediaMode = 'audio';
@@ -400,9 +402,11 @@ function syncJblPlayer(song) {
 }
 
 async function openQrModal() {
+  if (!socket.party.code) return;
   document.getElementById('qrModal').style.display = 'flex';
+  document.getElementById('mobQrCode').textContent = socket.party.code;
   try {
-    const res = await fetch('/api/qrcode');
+    const res = await fetch('/api/qrcode?festa=' + encodeURIComponent(socket.party.code));
     const data = await res.json();
     partyInviteUrl = data.url;
     document.getElementById('mobQrImage').src = data.dataUrl;
@@ -447,6 +451,9 @@ if (!myPlayerId) {
 if (myPlayerName) {
   document.getElementById('playerNameInput').value = myPlayerName;
 }
+if (partyCode) {
+  document.getElementById('partyCodeInput').value = partyCode;
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -458,23 +465,69 @@ function showToast(msg) {
   }, 3000);
 }
 
-function joinParty() {
+function readLoginName() {
   const name = document.getElementById('playerNameInput').value.trim();
   if (!name) {
-    return showToast('Digite seu nome ou apelido!');
+    showToast('Digite seu nome ou apelido!');
+    return null;
   }
   myPlayerName = name;
   localStorage.setItem('jukebox_player_name', myPlayerName);
-
-  socket.emit('registerPlayer', { playerId: myPlayerId, name: myPlayerName }, (res) => {
-    if (res && res.ok) {
-      myPlayerId = res.player.id;
-      localStorage.setItem('jukebox_player_id', myPlayerId);
-      document.getElementById('loginScreen').style.display = 'none';
-      updateMyHeader(res.player);
-    }
-  });
+  return name;
 }
+
+function showLogin(message) {
+  document.getElementById('loginScreen').style.display = 'flex';
+  if (message) document.getElementById('loginHint').textContent = message;
+}
+
+// Entra na festa pelo código e registra o apelido. "silent" = reconexão automática.
+async function enterParty(code, name, silent = false) {
+  code = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!code) {
+    if (!silent) showToast('Digite o código da festa (está no QR Code / Telão).');
+    return false;
+  }
+  const joined = await socket.joinParty(code);
+  if (!joined.ok) {
+    showLogin(joined.error || 'Festa não encontrada. Confira o código.');
+    return false;
+  }
+  return finishEntry(joined.code, name);
+}
+
+async function finishEntry(code, name) {
+  partyCode = code;
+  setPartyInUrl(code);
+  document.getElementById('partyCodeInput').value = code;
+  document.getElementById('myPartyCode').textContent = '🎉 ' + code;
+  const res = await new Promise(resolve => socket.emit('registerPlayer', { name }, resolve));
+  if (!res || !res.ok) return false;
+  myPlayerId = res.player.id;
+  localStorage.setItem('jukebox_player_id', myPlayerId);
+  document.getElementById('loginScreen').style.display = 'none';
+  updateMyHeader(res.player);
+  return true;
+}
+
+function joinParty() {
+  const name = readLoginName();
+  if (!name) return;
+  enterParty(document.getElementById('partyCodeInput').value, name);
+}
+
+async function createPartyHere() {
+  const name = readLoginName();
+  if (!name) return;
+  const created = await socket.createParty();
+  if (!created.ok) return showToast(created.error || 'Não foi possível criar a festa.');
+  if (await finishEntry(created.code, name)) {
+    showToast(`🎉 Festa criada! Código ${created.code}`);
+    openQrModal();
+  }
+}
+
+socket.onPartyLost = result => showLogin(result?.error || 'A festa não existe mais. Entre em outra ou crie uma nova.');
 
 let reclaimJbl = false;
 socket.on('disconnect', () => {
@@ -484,21 +537,15 @@ socket.on('disconnect', () => {
   updateJblUi();
 });
 socket.on('connect', async () => {
+  // Entra sozinho na última festa (ou na do QR) se já tiver apelido salvo.
+  const code = socket.party.code || partyCode;
+  if (!myPlayerName || !code) return;
+  if (!await enterParty(code, myPlayerName, true)) return;
   if (reclaimJbl) {
     reclaimJbl = false;
     jblModeActive = await socket.claimPlayback();
     if (jblModeActive) syncJblPlayer(latestState?.currentSong);
     updateJblUi();
-  }
-  if (myPlayerName) {
-    socket.emit('registerPlayer', { playerId: myPlayerId, name: myPlayerName }, (res) => {
-      if (res && res.ok) {
-        myPlayerId = res.player.id;
-        localStorage.setItem('jukebox_player_id', myPlayerId);
-        document.getElementById('loginScreen').style.display = 'none';
-        updateMyHeader(res.player);
-      }
-    });
   }
 });
 
@@ -523,14 +570,33 @@ function isMustVoteLocked() {
     return false;
   }
   const s = latestState.currentSong;
-  const isMine = s.realAddedById === myPlayerId;
+  const isMine = Boolean(lastYou?.currentIsMine);
   const alreadyVoted = (s.voterIds || []).includes(myPlayerId);
   return !isMine && !alreadyVoted;
 }
 
-socket.on('stateUpdate', (state) => {
+const mysteryClock = createMysteryClock(seconds => {
+  const badge = document.getElementById('nowMysteryBadge');
+  if (badge && badge.dataset.mystery === '1') badge.textContent = `🕵️ Mistério (${seconds}s)`;
+});
+
+socket.on('stateUpdate', (state, you) => {
   latestState = state;
+  lastYou = you || null;
   const isDesafio = state.mode === 'desafio';
+  if (document.body?.classList) {
+    document.body.classList.toggle('is-host', Boolean(you?.isHost));
+    document.body.classList.toggle('can-control', you ? Boolean(you.canControl) : true);
+  }
+  const guestsInput = document.getElementById('guestsControlInput');
+  if (state.settings) guestsInput.checked = Boolean(state.settings.guestsControl);
+  const themeBanner = document.getElementById('themeBanner');
+  themeBanner.hidden = !state.theme;
+  if (state.theme) themeBanner.innerHTML = `🎨 Rodada temática: <strong>${escapeHtml(state.theme)}</strong>`;
+  const dedicationEl = document.getElementById('nowDedication');
+  const ded = state.currentSong?.dedication;
+  dedicationEl.hidden = !ded;
+  if (ded) dedicationEl.textContent = `💌 ${ded}`;
 
   // Atualiza botões de modo no celular
   document.getElementById('mobBtnLivre').classList.toggle('active', !isDesafio);
@@ -579,8 +645,12 @@ socket.on('stateUpdate', (state) => {
   } else {
     const s = state.currentSong;
     if (!s.isRevealed && isDesafio) {
+      nowMystery.dataset.mystery = '1';
       nowMystery.textContent = `🕵️ Mistério (${s.mysteryRemainingSeconds}s)`;
+      mysteryClock.update(s, state.isPaused);
     } else {
+      nowMystery.dataset.mystery = '';
+      mysteryClock.update(null);
       nowMystery.textContent = `🎧 Pedida por: ${s.addedBy.name}`;
     }
 
@@ -602,7 +672,7 @@ socket.on('stateUpdate', (state) => {
       voteArea.style.display = 'none';
     } else {
       voteArea.style.display = 'block';
-      const isMine = s.realAddedById === myPlayerId;
+      const isMine = Boolean(lastYou?.currentIsMine);
       const alreadyVoted = (s.voterIds || []).includes(myPlayerId);
       const myAmmo = me ? me.ammo : 0;
 
@@ -644,7 +714,8 @@ socket.on('stateUpdate', (state) => {
     qList.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px;">Nenhuma música na fila ainda.</div>`;
   } else {
     qList.innerHTML = state.queue.map((item, idx) => {
-      const isMine = item.addedBy.id === myPlayerId;
+      const isMine = (lastYou?.mySongIds || []).includes(item.id) || item.addedBy.id === myPlayerId;
+      const removable = isMine || lastYou?.isHost;
       const who = isMine
         ? '⭐ VOCÊ'
         : (isDesafio ? '🕵️ Mistério' : escapeHtml(item.addedBy.name));
@@ -655,7 +726,9 @@ socket.on('stateUpdate', (state) => {
           <div class="song-item-info">
             <div class="song-item-title">${escapeHtml(item.title)}</div>
             <div class="song-item-sub">${escapeHtml(item.artist)} • <strong style="color:#c4b5fd;">${who}</strong></div>
+            ${item.dedication ? `<div class="song-item-sub">💌 ${escapeHtml(item.dedication)}</div>` : ''}
           </div>
+          ${removable ? `<button type="button" class="btn-remove" data-remove-song="${escapeHtml(item.id)}" aria-label="Remover da fila">✕</button>` : ''}
         </div>
       `;
     }).join('');
@@ -673,7 +746,8 @@ socket.on('stateUpdate', (state) => {
         <div style="font-weight:900; width:24px; color:#fbbf24;">#${idx + 1}</div>
         <div class="song-item-info">
           <div class="song-item-title">
-            ${p.avatar} ${escapeHtml(p.name)} ${(isDesafio && p.isRanzinza) ? '😡' : ''}
+            ${escapeHtml(p.avatar)} ${escapeHtml(p.name)} ${(isDesafio && p.isRanzinza) ? '😡' : ''}
+            <span class="ach-row">${(p.achievements || []).map(a => `<span title="${escapeHtml(a.name)}">${escapeHtml(a.icon)}</span>`).join('')}</span>
           </div>
           <div class="song-item-sub">${subText}</div>
         </div>
@@ -711,6 +785,9 @@ socket.on('liveReaction', ({ emoji }) => {
 });
 
 function remoteControl(action) {
+  if (lastYou && !lastYou.canControl) {
+    return showToast('🔒 O anfitrião deixou os controles só com ele.');
+  }
   if (action === 'togglePause' && jblModeActive) {
     if (jblVideoEl.paused) resumeJblPlayback();
     else jblVideoEl.pause();
@@ -867,7 +944,9 @@ function addSongByIndex(idx, btnEl) {
     btnEl.disabled = true;
     btnEl.textContent = 'Adicionando...';
   }
-  socket.emit('addSong', { playerId: myPlayerId, name: myPlayerName, song }, (res) => {
+  const dedicationInput = document.getElementById('dedicationInput');
+  const dedication = (dedicationInput.value || '').trim().slice(0, 60);
+  socket.emit('addSong', { song, dedication: dedication || undefined }, (res) => {
     if (!res || !res.ok) {
       showToast(res?.error || 'Erro ao adicionar');
       if (btnEl) {
@@ -875,7 +954,8 @@ function addSongByIndex(idx, btnEl) {
         btnEl.textContent = '+ Fila';
       }
     } else {
-      showToast('🎵 Música adicionada! Já vai tocar no Telão!');
+      showToast(dedication ? '💌 Música com dedicatória na fila!' : '🎵 Música adicionada! Já vai tocar no Telão!');
+      dedicationInput.value = '';
       if (btnEl) {
         btnEl.textContent = '✓ Na Fila';
       }
@@ -884,3 +964,84 @@ function addSongByIndex(idx, btnEl) {
 }
 
 updateJblUi();
+
+// ==========================================
+// FILA: REMOVER OS PRÓPRIOS PEDIDOS
+// ==========================================
+document.getElementById('mobQueueList').addEventListener?.('click', event => {
+  const button = event.target?.closest?.('[data-remove-song]');
+  if (!button) return;
+  socket.emit('hostAction', { action: 'removeQueueItem', payload: { songId: button.dataset.removeSong } }, result => {
+    if (result?.ok) showToast('🗑️ Pedido removido da fila.');
+  });
+});
+
+// ==========================================
+// ANFITRIÃO: CONTROLES, TEMA E RESUMO
+// ==========================================
+function setGuestsControl(value) {
+  socket.emit('hostAction', { action: 'setSettings', payload: { guestsControl: Boolean(value) } }, result => {
+    if (result?.ok) showToast(value ? '🙌 A galera pode pular e pausar.' : '🔒 Só você controla a música agora.');
+  });
+}
+
+function setTheme(theme) {
+  socket.emit('hostAction', { action: 'setTheme', payload: { theme: String(theme || '').trim().slice(0, 40) } });
+}
+
+socket.on('themeChanged', ({ theme }) => {
+  showToast(theme ? `🎨 Nova rodada temática: ${theme}!` : '🎨 Rodada temática encerrada.');
+});
+
+function showSummaryToAll() {
+  socket.emit('hostAction', { action: 'showSummary' });
+}
+
+function requestSummary() {
+  socket.emit('getSummary', {}, result => { if (result?.ok) showSummary(result.summary); });
+}
+
+socket.on('partySummary', showSummary);
+
+function showSummary(summary) {
+  if (!summary) return;
+  const list = document.getElementById('summaryList');
+  const cards = summary.cards.map(card => `
+    <div class="summary-item">
+      <div class="summary-icon">${escapeHtml(card.icon)}</div>
+      <div>
+        <small>${escapeHtml(card.title)}</small>
+        <strong>${escapeHtml(card.value)}</strong>
+        <span>${escapeHtml(card.sub || '')}</span>
+      </div>
+    </div>`).join('');
+  const badges = summary.achievements.length ? `
+    <div class="summary-item column">
+      <small>🏅 Conquistas da noite</small>
+      ${summary.achievements.map(p => `<div class="summary-ach"><strong>${escapeHtml(p.avatar)} ${escapeHtml(p.name)}</strong> ${p.badges.map(b => `<span title="${escapeHtml(b.name)}: ${escapeHtml(b.desc)}">${escapeHtml(b.icon)}</span>`).join('')}</div>`).join('')}
+    </div>` : '';
+  list.innerHTML = cards + badges;
+  document.getElementById('summaryModal').hidden = false;
+}
+
+function closeSummary(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('summaryModal').hidden = true;
+}
+
+// ==========================================
+// CONQUISTAS
+// ==========================================
+socket.on('achievement', ({ player, achievement }) => {
+  if (player.id !== myPlayerId) {
+    showToast(`${achievement.icon} ${player.name} desbloqueou: ${achievement.name}`);
+    return;
+  }
+  const el = document.getElementById('achievementPopup');
+  el.innerHTML = `<div class="ach-big">${escapeHtml(achievement.icon)}</div>
+    <div><small>VOCÊ DESBLOQUEOU</small><strong>${escapeHtml(achievement.name)}</strong><span>${escapeHtml(achievement.desc)}</span></div>`;
+  el.hidden = false;
+  if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+  clearTimeout(window._achTimer);
+  window._achTimer = setTimeout(() => { el.hidden = true; }, 3800);
+});

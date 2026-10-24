@@ -24,15 +24,18 @@ function browser(page) {
     createElement: element, body: element(), documentElement: element(), querySelectorAll: () => []
   };
   const storage = new Map();
-  const context = vm.createContext({ document, console, navigator: {},
-    window: { location: { origin: 'http://localhost', href: 'http://localhost/' } },
+  const context = vm.createContext({ document, console, navigator: {}, URLSearchParams,
+    history: { replaceState() {} },
+    window: { location: { origin: 'http://localhost', href: 'http://localhost/', search: '', pathname: '/' } },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id; },
     clearTimeout(id) { timers.delete(id); },
+    setInterval: () => 0, clearInterval() {},
     fetch: async () => ({ ok: true, json: async () => ({ dataUrl: '', url: 'http://localhost' }) })
   });
   vm.runInContext(fs.readFileSync('public/common.js', 'utf8'), context);
-  context.createPartySocket = () => ({ on: (event, fn) => handlers.set(event, fn), emit() {}, claimPlayback: async () => true });
+  context.createPartySocket = () => ({ party: { code: 'TEST' }, on: (event, fn) => handlers.set(event, fn), emit() {},
+    claimPlayback: async () => true, joinParty: async () => ({ ok: true, code: 'TEST' }) });
   if (page) vm.runInContext(fs.readFileSync(`public/${page}.js`, 'utf8'), context);
   return { context, elements, handlers, timers, element };
 }

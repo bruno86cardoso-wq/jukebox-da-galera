@@ -11,7 +11,27 @@ npm ci
 npm start
 ```
 
-Abra `http://localhost:3456/tv` no aparelho que vai tocar. O terminal mostra um código de anfitrião: informe-o quando solicitado. No celular, o botão **Anfitrião** libera os controles e o modo JBL. Os convidados entram pelo QR Code, escolhem um nome e podem pedir e votar sem esse código.
+Abra `http://localhost:3456/tv` no aparelho que vai tocar. O telão cria uma **festa** com um código curto (ex.: `K7PQ`) e vira o anfitrião dela. Os convidados entram pelo QR Code, que já leva o código, e só escolhem um apelido. Quem não tiver o QR digita o código na tela inicial do celular.
+
+Também dá para criar a festa direto no celular (**Criar uma festa neste celular**) e usar o próprio celular ou uma JBL como som.
+
+## Festas separadas
+
+- Cada festa tem fila, votos, ranking e conquistas próprios. Várias festas podem rodar no mesmo servidor ao mesmo tempo sem se misturar.
+- O código da festa funciona como uma senha leve: sem ele ninguém entra, mas ele vai embutido no QR Code, então ninguém precisa digitar nada.
+- Quem cria a festa recebe uma chave de anfitrião, guardada só naquele navegador. Em **⚙️ Festa**, o telão mostra um QR do anfitrião para você controlar pelo seu celular. Não mostre esse QR para a galera.
+- **Galera pode pular e pausar** vem ligado. O anfitrião pode desligar: aí só ele pula, volta, pausa e assume o som. Modo, tema, número de pessoas e resumo são sempre só do anfitrião. Cada convidado pode remover os próprios pedidos.
+- Ao reabrir `/tv`, o telão volta para a última festa que criou. **Começar uma festa nova** gera outro código.
+- Festas sem ninguém conectado são apagadas após 12 horas sem atividade.
+
+## Recursos da festa
+
+- **Dedicatória:** antes de pedir, escreva uma mensagem (até 60 caracteres). Ela aparece no telão quando a música toca; no Desafio, o autor só aparece depois da revelação.
+- **Rodada temática:** o anfitrião escolhe um tema (Anos 2000, Só funk, Música de corno…). Todos veem o tema, e no Desafio cada música aprovada dentro do tema vale +5.
+- **Conquistas:** Abriu a Pista, Maratonista, Hitmaker, Unanimidade, Sniper, Coração Mole, Ranzinza Oficial, Alvo de Tomate, Romântico, No Clima e Animador. Aparecem no telão, no celular de quem ganhou e no ranking.
+- **Resumo da festa:** hino da noite, DJ da festa, mais vetado, maior ranzinza, coração mole, dedicatórias, temas e conquistas. O anfitrião mostra no telão e em todos os celulares; qualquer um vê pelo botão 📊.
+- **Telão vivo:** o fundo acompanha a cor da capa da música, as reações mostram o nome de quem reagiu, e muitas reações juntas viram uma chuva de emojis.
+- **Mistério de verdade:** no Desafio, o servidor não envia quem pediu, nem pelo placar ou pelas conquistas, até os 30 segundos acabarem. A contagem roda no próprio aparelho, sem mensagens a cada segundo.
 
 Somente o aparelho ativo controla os eventos de reprodução. Ao transferir a reprodução, o anterior para; ao perder conexão, ele também interrompe o áudio. O navegador pode exigir um toque em **Continuar** para liberar som.
 
@@ -33,7 +53,6 @@ Defina as variáveis no terminal antes de iniciar, ou nas configurações da hos
 | Variável | Uso |
 | --- | --- |
 | `PORT` | Porta HTTP; padrão `3456`. |
-| `HOST_PIN` | Código de anfitrião de 6 a 128 caracteres. Sem configuração, gera um novo código de 8 dígitos a cada início. |
 | `PUBLIC_URL` | URL pública para o QR Code. Render e Railway também são detectados. |
 | `DISABLE_TUNNEL` | `1` desativa o túnel automático. |
 | `DATA_DIR` | Diretório persistente; padrão `./data`. |
@@ -43,13 +62,13 @@ Defina as variáveis no terminal antes de iniciar, ou nas configurações da hos
 | `MEDIA_DIAGNOSTICS_VIDEO` | ID opcional de vídeo para testar extração nativa no início, mesmo quando há `MEDIA_ORIGIN`. Remova após o diagnóstico. |
 | `TRUST_PROXY_HOPS` | Número de proxies confiáveis à frente do servidor, somente se conhecido. Afeta limites HTTP por IP. |
 
-O código aparece no terminal para o operador; não compartilhe logs contendo esse código com convidados. A sessão de anfitrião fica na aba e expira após reiniciar o servidor. A identidade de participante fica no navegador; limpar os dados ou usar outro endereço cria uma nova identidade.
+A chave de anfitrião e a identidade de participante ficam no navegador. Limpar os dados ou usar outro endereço cria uma nova identidade; o anfitrião pode recuperar o controle pelo QR do anfitrião em outro aparelho.
 
 ## Recuperação da festa
 
-Fila, histórico, pontuação e participantes são salvos atomicamente em `data/party.json`, após 200 ms sem mudanças e no encerramento normal. A música atual volta pausada, do início, preservando os votos. Participantes reaparecem como desconectados até entrarem novamente. Uma interrupção abrupta pode perder os últimos 200 ms de alterações.
+Cada festa é salva atomicamente em `data/parties/<CÓDIGO>.json` (fila, histórico, pontuação, participantes, conquistas e a chave do anfitrião, guardada como hash), após 200 ms sem mudanças e no encerramento normal. A música atual volta pausada, do início, preservando os votos. Participantes reaparecem como desconectados até entrarem novamente. Uma interrupção abrupta pode perder os últimos 200 ms de alterações.
 
-Para começar uma festa nova, pare o servidor e renomeie `data/party.json`. Se o arquivo estiver corrompido, o servidor informa o problema e preserva o arquivo para recuperação.
+Para começar uma festa nova, use **⚙️ Festa → Começar uma festa nova**. Se um arquivo estiver corrompido, o servidor informa o problema, ignora aquela festa e preserva o arquivo. O antigo `data/party.json` da versão anterior não é mais usado.
 
 Em Docker, monte um volume gravável em `/app/data`. Em hospedagens com armazenamento efêmero, configure `DATA_DIR` em um volume persistente para sobreviver a recriações da instância. O `render.yaml` não provisiona um volume. Execute apenas uma instância: o estado ativo e as sessões estão em memória.
 
@@ -70,7 +89,8 @@ npm test
 
 Os testes usam HTTP e WebSocket locais e simulam a extração de mídia, sem acessar YouTube ou abrir túneis. Cobrem permissões, payloads inválidos, identidade, votação, transferência do player, recuperação da festa, fila e cache.
 
-- `server.js`: aplicação HTTP, eventos e regras da festa.
+- `server.js`: aplicação HTTP, salas de festa e eventos em tempo real.
+- `lib/party.js`: regras de uma festa (fila, votos, mistério, conquistas, tema, resumo).
 - `lib/security.js`: validação, sessões e limites.
 - `lib/media.js`: extração e proxy de mídia.
 - `lib/catalog.js`: busca nos catálogos.

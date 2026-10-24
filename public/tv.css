@@ -958,3 +958,242 @@ body {
     max-height: 320px;
   }
 }
+
+/* ==========================================
+   FESTAS, TEMA, DEDICATÓRIA, CONQUISTAS, RESUMO
+   ========================================== */
+body:not(.is-host) .host-only { display: none !important; }
+
+/* Fundo que acompanha a cor da capa da música */
+.ambient-glow {
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 25% 30%, var(--ambient, #4c1d95) 0%, transparent 45%),
+    radial-gradient(circle at 80% 75%, var(--ambient, #0e7490) 0%, transparent 40%);
+  opacity: 0.38;
+  filter: blur(60px) saturate(1.4);
+  transition: background 1.6s ease;
+  animation: ambientDrift 18s ease-in-out infinite alternate;
+}
+body { background: #070913; }
+@keyframes ambientDrift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(4%, -3%) scale(1.08); }
+}
+
+.party-code-badge {
+  margin-left: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde68a;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.party-code-badge strong { font-size: 18px; letter-spacing: 3px; color: #fff; }
+
+.qr-party-code {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.qr-party-code strong { font-size: 24px; color: #fde68a; letter-spacing: 4px; }
+
+.theme-banner {
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.25), rgba(139, 92, 246, 0.25));
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  font-weight: 700;
+  font-size: 15px;
+}
+.theme-banner strong { color: #f9a8d4; }
+
+.dedication-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: 86%;
+  padding: 12px 22px;
+  border-radius: 18px;
+  background: rgba(190, 24, 93, 0.85);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 40px rgba(190, 24, 93, 0.45);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+.dedication-banner small { font-size: 14px; opacity: 0.85; font-weight: 600; }
+.pop { animation: popIn 0.45s cubic-bezier(.2, 1.4, .4, 1); }
+
+.ach-row { display: inline-flex; gap: 2px; font-size: 14px; }
+.ach-icon { cursor: default; }
+
+.floating-emoji { display: flex; flex-direction: column; align-items: center; }
+.floating-emoji small {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.floating-emoji.rain { font-size: 54px; animation-duration: 2.6s; }
+body.reaction-burst .main-grid { animation: shake 0.5s ease 2; }
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-6px, 2px) rotate(-0.4deg); }
+  75% { transform: translate(6px, -2px) rotate(0.4deg); }
+}
+
+/* Conquista */
+.achievement-popup {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 26px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f59e0b, #db2777);
+  box-shadow: 0 18px 50px rgba(219, 39, 119, 0.5);
+  animation: popIn 0.4s cubic-bezier(.2, 1.4, .4, 1);
+}
+.achievement-popup[hidden] { display: none; }
+.achievement-popup .ach-big { font-size: 52px; }
+.achievement-popup small { display: block; font-size: 11px; letter-spacing: 2px; font-weight: 800; opacity: 0.85; }
+.achievement-popup strong { display: block; font-size: 22px; }
+.achievement-popup span { font-size: 14px; opacity: 0.9; }
+
+/* Configurações */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(3, 5, 12, 0.75);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.settings-modal[hidden] { display: none; }
+.settings-card {
+  width: min(820px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #111527;
+  border: 1px solid var(--border-glow);
+  border-radius: 22px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.settings-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.settings-head h2 { font-size: 22px; }
+.settings-code { color: #fde68a; letter-spacing: 3px; margin-left: 6px; }
+.switch-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+.switch-row input { width: 22px; height: 22px; accent-color: #10b981; }
+.switch-row span, .settings-block { display: flex; flex-direction: column; gap: 6px; }
+.switch-row small, .settings-block small { color: var(--text-muted); font-size: 13px; }
+.settings-block { padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.settings-block img { width: 200px; border-radius: 12px; margin-top: 6px; background: #fff; padding: 6px; }
+.theme-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.theme-chips button {
+  border: 1px solid rgba(236, 72, 153, 0.5);
+  background: rgba(236, 72, 153, 0.12);
+  color: #fbcfe8;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.theme-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.theme-form input {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glow);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+}
+.btn-action.danger { border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
+
+/* Resumo da festa */
+.summary-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  background: radial-gradient(circle at 30% 20%, #4c1d95, #0b0720 60%, #000 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  cursor: pointer;
+  padding: 24px;
+}
+.summary-overlay[hidden] { display: none; }
+.summary-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.summary-slide { text-align: center; max-width: 900px; }
+.summary-slide.in { animation: slideIn 0.6s cubic-bezier(.2, 1.2, .4, 1); }
+.summary-icon { font-size: 110px; margin-bottom: 8px; }
+.summary-slide h2 { font-size: 30px; color: #c4b5fd; text-transform: uppercase; letter-spacing: 2px; }
+.summary-value { font-size: 58px; font-weight: 900; margin: 12px 0; line-height: 1.1; }
+.summary-slide p { font-size: 22px; color: #e2e8f0; }
+.summary-ach { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; font-size: 26px; }
+.summary-ach span { margin-left: 4px; }
+.summary-dots { display: flex; gap: 8px; }
+.summary-dots span { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.25); }
+.summary-dots span.on { background: #fff; }
+@keyframes slideIn {
+  0% { opacity: 0; transform: translateY(40px) scale(0.92); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (max-width: 960px) {
+  .settings-grid { grid-template-columns: 1fr; }
+  .summary-value { font-size: 34px; }
+  .summary-icon { font-size: 70px; }
+  .dedication-banner { font-size: 16px; bottom: 50px; }
+  .party-code-badge { margin-left: 0; }
+}

@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/tv.css" />
 </head>
 <body>
+  <div id="ambientGlow" class="ambient-glow" aria-hidden="true"></div>
 
   <!-- MODAL INICIAL DE ESCOLHA DO MODO -->
   <div id="startModal" class="start-modal">
@@ -54,10 +55,11 @@
         <h1>Jukebox da Galera</h1>
         <span>Integrado ao YouTube Music • Fila Inteligente 2x</span>
       </div>
+      <div class="party-code-badge" title="Código da festa">🎉 FESTA <strong id="partyCodeBadge">····</strong></div>
     </div>
 
     <div class="controls-bar">
-      <div class="mode-switch">
+      <div class="mode-switch host-only">
         <button id="btnModeLivre" class="mode-btn livre active" onclick="setMode('livre')">
           🟢 Modo Só Escutar (Livre)
         </button>
@@ -70,7 +72,7 @@
         🎵 Só Música (Rápido ⚡)
       </button>
 
-      <div class="pill-control" title="Deixe 0 para contar automaticamente os celulares conectados">
+      <div class="pill-control host-only" title="Deixe 0 para contar automaticamente os celulares conectados">
         <span>👥 Na Festa:</span>
         <input id="fixedPlayersInput" type="number" min="0" max="99" value="0" onchange="updateFixedPlayers(this.value)" />
         <span id="activePlayersLabel">(Conectados: 1)</span>
@@ -80,6 +82,8 @@
       <button class="btn-action" onclick="togglePause()">⏯️ Play/Pause</button>
       <button class="btn-action" onclick="skipSong()">⏭️ Próxima</button>
       <button class="btn-action" onclick="toggleFullscreen()">⛶ Tela Cheia</button>
+      <button class="btn-action host-only" onclick="openSettings()">⚙️ Festa</button>
+      <button class="btn-action" onclick="requestSummary()">📊 Resumo</button>
     </div>
   </header>
 
@@ -111,6 +115,8 @@
           <button class="unmute-btn" onclick="forcePlayWithSound()">🔊 CLIQUE AQUI PARA ATIVAR O SOM DA TV</button>
         </div>
 
+        <div id="dedicationBanner" class="dedication-banner" hidden></div>
+
         <div id="idleScreen" class="idle-screen">
           <div style="font-size: 64px;">🎶</div>
           <h2>O Telão está pronto!</h2>
@@ -119,6 +125,7 @@
       </div>
 
       <div class="card now-playing-card">
+        <div id="themeBanner" class="theme-banner" hidden></div>
         <div class="song-header">
           <div class="song-meta">
             <div id="nowTitle" class="song-title">Aguardando pedidos da galera...</div>
@@ -188,6 +195,7 @@
         <div class="qr-info">
           <span id="qrModeBadge" class="qr-badge">📶 Wi-Fi / 4G</span>
           <h3>Aponte a Câmera e Peça!</h3>
+          <div class="qr-party-code">Código da festa: <strong id="qrPartyCode">····</strong></div>
           <p>Adicione músicas pelo celular (sem precisar instalar nada)</p>
           <div id="qrUrlText" class="qr-url">Carregando link...</div>
         </div>
@@ -219,6 +227,68 @@
     <h1>VETADA PELA GALERA!</h1>
     <p id="vetoOverlaySub">A maioria deu Dislike! Pulando para a próxima...</p>
   </div>
+
+  <!-- CONFIGURAÇÕES DA FESTA (ANFITRIÃO) -->
+  <div id="settingsModal" class="settings-modal" hidden onclick="closeSettings(event)">
+    <div class="settings-card" onclick="event.stopPropagation()">
+      <div class="settings-head">
+        <h2>⚙️ Configurações da Festa <span id="settingsCode" class="settings-code"></span></h2>
+        <button class="btn-action" onclick="closeSettings()">✕</button>
+      </div>
+
+      <label class="switch-row">
+        <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
+        <span>
+          <strong>Galera pode pular, voltar e pausar</strong>
+          <small>Desligado: só você controla a música e o som.</small>
+        </span>
+      </label>
+
+      <div class="settings-block">
+        <strong>🎨 Rodada temática</strong>
+        <small>A galera vê o tema no celular. No Desafio, música no tema aprovada vale +5.</small>
+        <div class="theme-chips">
+          <button onclick="setTheme('Anos 2000')">Anos 2000</button>
+          <button onclick="setTheme('Só funk')">Só funk</button>
+          <button onclick="setTheme('Música de corno')">Música de corno</button>
+          <button onclick="setTheme('Pagode')">Pagode</button>
+          <button onclick="setTheme('Rock')">Rock</button>
+          <button onclick="setTheme('Sertanejo')">Sertanejo</button>
+          <button onclick="setTheme('Flashback')">Flashback</button>
+        </div>
+        <form class="theme-form" onsubmit="event.preventDefault(); setTheme(this.theme.value)">
+          <input name="theme" maxlength="40" placeholder="Ou escreva um tema…" />
+          <button class="btn-action" type="submit">Definir</button>
+          <button class="btn-action" type="button" onclick="setTheme('')">Encerrar tema</button>
+        </form>
+      </div>
+
+      <div class="settings-grid">
+        <div class="settings-block">
+          <strong>📱 Controlar pelo celular</strong>
+          <small>Leia com o <em>seu</em> celular para virar anfitrião nele também. Não mostre para a galera.</small>
+          <button id="btnShowHostQr" class="btn-action" onclick="showHostQr()">Mostrar QR do anfitrião</button>
+          <img id="hostQrImage" alt="QR do anfitrião" hidden />
+        </div>
+        <div class="settings-block">
+          <strong>🎉 Festa</strong>
+          <button class="btn-action" onclick="showSummaryToAll()">📊 Mostrar resumo no telão e nos celulares</button>
+          <button id="btnNewParty" class="btn-action danger" onclick="startNewParty()">Começar uma festa nova</button>
+          <small>A festa atual continua salva; quem tiver o código ainda entra nela.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUMO DA FESTA (WRAPPED) -->
+  <div id="summaryOverlay" class="summary-overlay" hidden>
+    <button class="summary-close" onclick="closeSummary()">✕</button>
+    <div id="summarySlide" class="summary-slide"></div>
+    <div id="summaryDots" class="summary-dots"></div>
+  </div>
+
+  <!-- CONQUISTA DESBLOQUEADA -->
+  <div id="achievementPopup" class="achievement-popup" hidden></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/common.js"></script>

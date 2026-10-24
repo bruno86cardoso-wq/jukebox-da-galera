@@ -20,9 +20,15 @@
     <div class="login-card">
       <div style="font-size: 48px;">🎧🔥</div>
       <h1>Jukebox da Galera</h1>
-      <p>Digite seu nome ou apelido para colocar músicas na fila do Telão!</p>
+      <p id="loginHint">Digite o código da festa e seu apelido para pedir músicas!</p>
+      <label class="login-label" for="partyCodeInput">Código da festa</label>
+      <input id="partyCodeInput" class="input-text code-input" type="text" placeholder="EX: K7PQ" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+      <label class="login-label" for="playerNameInput">Seu nome ou apelido</label>
       <input id="playerNameInput" class="input-text" type="text" placeholder="Seu nome ou apelido..." maxlength="20" />
       <button class="btn-primary" onclick="joinParty()">Entrar na Festa 🚀</button>
+      <div class="login-divider"><span>ou</span></div>
+      <button class="btn-secondary" onclick="createPartyHere()">🎉 Criar uma festa neste celular</button>
+      <small class="login-foot">Quem cria a festa vira o anfitrião. O código aparece no QR Code para a galera entrar.</small>
     </div>
   </div>
 
@@ -31,6 +37,7 @@
     <div class="user-info">
       <span id="myAvatar">🎸</span>
       <span id="myName">Convidado</span>
+      <button type="button" id="myPartyCode" class="party-pill" onclick="openQrModal()" title="Código da festa">····</button>
     </div>
     <div id="desafioStatsBox" class="user-stats" style="display: none;">
       <span id="myAmmo" class="stat-pill ammo" title="Munição de Dislike">💣 3/3</span>
@@ -63,7 +70,29 @@
     </div>
 
     <!-- SELETOR DOS DOIS MODOS NO APP -->
-    <div class="mode-switcher-card">
+    <!-- PAINEL DO ANFITRIÃO -->
+    <section class="host-card host-only">
+      <div class="host-card-title">👑 Você é o anfitrião</div>
+      <label class="switch-row">
+        <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
+        <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
+      </label>
+      <div class="theme-chips">
+        <button type="button" onclick="setTheme('Anos 2000')">Anos 2000</button>
+        <button type="button" onclick="setTheme('Só funk')">Só funk</button>
+        <button type="button" onclick="setTheme('Música de corno')">Corno</button>
+        <button type="button" onclick="setTheme('Pagode')">Pagode</button>
+        <button type="button" onclick="setTheme('Flashback')">Flashback</button>
+      </div>
+      <form class="theme-form" onsubmit="event.preventDefault(); setTheme(this.theme.value); this.reset();">
+        <input name="theme" class="input-text" maxlength="40" placeholder="🎨 Tema da rodada…" />
+        <button type="submit" class="btn-tool">Definir</button>
+        <button type="button" class="btn-tool" onclick="setTheme('')">Sem tema</button>
+      </form>
+      <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo para todo mundo</button>
+    </section>
+
+    <div class="mode-switcher-card host-only">
       <button id="mobBtnLivre" class="mob-mode-btn livre active" onclick="changeAppMode('livre')">
         🟢 Modo Livre
       </button>
@@ -74,11 +103,13 @@
 
     <!-- CARD: TOCANDO AGORA + VOTAÇÃO (NO MODO DESAFIO) -->
     <section class="now-card">
+      <div id="themeBanner" class="theme-banner" hidden></div>
       <div class="now-badge-row">
         <span id="playbackBadge" class="live-pill" onclick="handlePlaybackBadgeClick()" title="Toque para assumir o som neste aparelho">AGUARDANDO MÚSICA</span>
         <span id="nowMysteryBadge" class="mystery-pill">Aguardando...</span>
       </div>
 
+      <div id="nowDedication" class="now-dedication" hidden></div>
       <div id="nowPlayingContent" class="now-song-row">
         <div class="now-meta">
           <div class="now-title">Nenhuma música tocando</div>
@@ -160,7 +191,7 @@
       </div>
 
       <!-- CONTROLES DE REPRODUÇÃO (VOLTAR / PLAY-PAUSE / PRÓXIMA) -->
-      <div id="mobTransportBar" class="mob-transport-bar">
+      <div id="mobTransportBar" class="mob-transport-bar control-only">
         <button class="btn-mob-ctrl" onclick="remoteControl('previousSong')">⏮️ Voltar</button>
         <button id="mobBtnPlayPause" class="btn-mob-ctrl" onclick="remoteControl('togglePause')">⏯️ Pausar</button>
         <button class="btn-mob-ctrl" onclick="remoteControl('skipSong')">⏭️ Próxima</button>
@@ -200,6 +231,10 @@
         <button id="btnSearchSubmit" type="submit" class="btn-search">Buscar</button>
       </form>
 
+      <div class="dedication-row">
+        <input id="dedicationInput" class="input-text" type="text" maxlength="60" placeholder="💌 Dedicar a próxima música (opcional) — ex: pra Mo 💘" />
+      </div>
+
       <div id="searchResults" class="results-list">
         <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
           Pesquise qualquer música ou clipe do <strong>YouTube Music</strong>!<br/>
@@ -218,6 +253,7 @@
 
     <!-- ABA 3: RANKING / PARTICIPANTES -->
     <section id="tabRank" style="display: none;">
+      <button type="button" class="btn-tool summary-btn" onclick="requestSummary()">📊 Ver resumo da festa</button>
       <div id="mobRankList" class="results-list"></div>
     </section>
   </main>
@@ -231,6 +267,7 @@
       <p style="font-size: 13px; color: var(--text-muted);">
         Peça para os amigos apontarem a câmera do celular para este QR Code:
       </p>
+      <div class="qr-code-line">Código: <strong id="mobQrCode">····</strong></div>
       <img id="mobQrImage" src="" alt="QR Code da Festa" />
       <div id="mobQrUrl" style="font-size: 11px; color: #38bdf8; word-break: break-all; font-family: monospace;"></div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 6px;">
@@ -244,6 +281,15 @@
     </div>
   </div>
 
+  <!-- RESUMO DA FESTA -->
+  <div id="summaryModal" class="summary-modal" hidden onclick="closeSummary(event)">
+    <div class="summary-card" onclick="event.stopPropagation()">
+      <div class="summary-head"><h2>📊 Resumo da festa</h2><button class="btn-tool" onclick="closeSummary()">✕</button></div>
+      <div id="summaryList" class="summary-list"></div>
+    </div>
+  </div>
+
+  <div id="achievementPopup" class="achievement-popup" hidden></div>
   <div id="toast" class="toast"></div>
 
   <script src="/socket.io/socket.io.js"></script>
