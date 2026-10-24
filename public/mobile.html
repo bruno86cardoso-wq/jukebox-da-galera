@@ -46,16 +46,18 @@
   </div>
 
   <main class="container">
-    <!-- BOTÃO PRINCIPAL: CONVIDAR GALERA COM QR CODE -->
-    <div class="top-invite-row">
-      <button type="button" class="btn-invite-party" onclick="openQrModal()">
-        📲 Convidar a Galera • QR Code
+    <!-- BARRA RÁPIDA DO TOPO: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
+    <div class="top-actions-row">
+      <button type="button" class="btn-top-action invite" onclick="openQrModal()">
+        <span>📲</span> Convidar Galera
+      </button>
+      <button type="button" id="btnToggleJbl" class="btn-top-action sound" onclick="toggleJblMode()">
+        <span id="btnToggleJblText">🔊 Assumir Som da Caixa</span>
       </button>
     </div>
 
     <!-- ELEMENTOS DE CONTROLE INTERNOS (MANTIDOS OCULTOS PARA COMPATIBILIDADE) -->
     <div style="display:none;" aria-hidden="true">
-      <button id="btnToggleJbl" onclick="toggleJblMode()"></button>
       <button id="btnMediaAudio" onclick="setJblMediaMode('audio')"></button>
       <button id="btnMediaVideo" onclick="setJblMediaMode('video')"></button>
     </div>
@@ -73,7 +75,7 @@
     <!-- CARD: TOCANDO AGORA + VOTAÇÃO (NO MODO DESAFIO) -->
     <section class="now-card">
       <div class="now-badge-row">
-        <span id="playbackBadge" class="live-pill">AGUARDANDO MÚSICA</span>
+        <span id="playbackBadge" class="live-pill" onclick="handlePlaybackBadgeClick()" title="Toque para assumir o som neste aparelho">AGUARDANDO MÚSICA</span>
         <span id="nowMysteryBadge" class="mystery-pill">Aguardando...</span>
       </div>
 

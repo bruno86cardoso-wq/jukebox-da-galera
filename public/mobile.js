@@ -81,6 +81,7 @@ function updatePlaybackStatus(status = jblPlaybackState) {
   if (badge) {
     badge.textContent = !latestState?.currentSong ? 'AGUARDANDO MÚSICA' : !jblModeActive ? 'REPRODUÇÃO EM OUTRO APARELHO'
       : { idle: 'AGUARDANDO', loading: 'CARREGANDO…', playing: '▶ TOCANDO AQUI', paused: '⏸ PAUSADO', blocked: 'TOQUE PARA OUVIR', error: 'ÁUDIO INDISPONÍVEL' }[status] || 'CARREGANDO…';
+    badge.title = !jblModeActive ? 'Toque para assumir o som neste aparelho' : 'Tocando neste aparelho';
   }
 
   // Atualiza controles customizados modernos estilo Spotify
@@ -175,6 +176,12 @@ socket.on('playerCommand', ({ command }) => {
   }
 });
 
+function handlePlaybackBadgeClick() {
+  if (!jblModeActive) {
+    toggleJblMode(true);
+  }
+}
+
 async function toggleJblMode(forcedState) {
   const nextState = typeof forcedState === 'boolean' ? forcedState : !jblModeActive;
   if (nextState === jblModeActive) return;
@@ -196,6 +203,7 @@ async function toggleJblMode(forcedState) {
       updateJblUi();
       return;
     }
+    showToast('🔊 Som assumido! Este aparelho está tocando.');
   } else {
     jblModeActive = false;
     socket.emit('releaseTv', {});
@@ -206,6 +214,7 @@ async function toggleJblMode(forcedState) {
     jblVideoEl.pause();
     jblVideoEl.removeAttribute('src');
     jblVideoEl.load();
+    showToast('🔇 Som liberado. Outro aparelho pode assumir.');
     updateJblUi();
   }
 }
@@ -221,9 +230,15 @@ function setJblMediaMode(mode) {
 
 function updateJblUi() {
   const btn = document.getElementById('btnToggleJbl');
+  const btnText = document.getElementById('btnToggleJblText');
   if (btn) {
     btn.classList.toggle('jbl-active', jblModeActive);
-    btn.textContent = jblModeActive ? '🔊 Tocando neste aparelho' : '🔊 Tocar aqui / JBL';
+    const label = jblModeActive ? '🔊 Tocando neste Aparelho' : '🔊 Assumir Som da Caixa';
+    if (btnText) {
+      btnText.textContent = label;
+    } else {
+      btn.textContent = label;
+    }
   }
   const box = document.getElementById('jblPlayerBox');
   if (box) {
