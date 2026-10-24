@@ -152,8 +152,9 @@
 
       <form class="search-bar" onsubmit="handleSearch(event)">
         <div class="search-input-wrap">
-          <input id="searchInput" class="input-text" type="text" placeholder="Buscar música ou artista..." oninput="toggleClearBtn()" />
+          <input id="searchInput" class="input-text" type="text" placeholder="Buscar música ou artista..." oninput="onSearchInput(this.value)" autocomplete="off" />
           <button id="btnClearSearch" type="button" class="btn-clear-search" onclick="clearSearchInput()" aria-label="Limpar busca">✕</button>
+          <div id="searchSuggestionsBox" class="search-suggestions" style="display: none;"></div>
         </div>
         <button id="btnSearchSubmit" type="submit" class="btn-search">Buscar</button>
       </form>

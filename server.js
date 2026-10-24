@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const QRCode = require('qrcode');
-const { searchYouTubeMusic } = require('./lib/catalog');
+const { searchYouTubeMusic, getSearchSuggestions } = require('./lib/catalog');
 const { rebalanceQueue: balanceQueue } = require('./lib/queue');
 
 const { randomBytes, randomInt } = require('node:crypto');
@@ -559,6 +559,17 @@ function createJukebox(options = {}) {
       res.json({ results });
     } catch (err) {
       res.status(500).json({ error: 'Erro na busca do YouTube Music', details: err.message });
+    }
+  });
+
+  app.get('/api/suggest', httpLimit, async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (!q) return res.json({ suggestions: [] });
+    try {
+      const suggestions = await getSearchSuggestions(q);
+      res.json({ suggestions });
+    } catch {
+      res.json({ suggestions: [] });
     }
   });
 

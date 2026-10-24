@@ -582,6 +582,70 @@ function switchTab(tab) {
   document.getElementById('tabBtnRank').classList.toggle('active', tab === 'rank');
 }
 
+let suggestTimer = null;
+function onSearchInput(val) {
+  toggleClearBtn();
+  const trimmed = val.trim();
+  clearTimeout(suggestTimer);
+  if (trimmed.length < 2) {
+    hideSuggestions();
+    return;
+  }
+  suggestTimer = setTimeout(() => {
+    fetchSuggestions(trimmed);
+  }, 220);
+}
+
+async function fetchSuggestions(term) {
+  try {
+    const res = await fetch(`/api/suggest?q=${encodeURIComponent(term)}`);
+    if (!res.ok) return hideSuggestions();
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    renderSuggestions(suggestions);
+  } catch {
+    hideSuggestions();
+  }
+}
+
+function renderSuggestions(list) {
+  const box = document.getElementById('searchSuggestionsBox');
+  if (!box) return;
+  if (!list || list.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+
+  box.innerHTML = list.map(item => `
+    <div class="suggestion-item" onclick="selectSuggestion('${escapeHtml(item).replace(/'/g, "\\'")}')">
+      <span class="icon">🔍</span>
+      <span>${escapeHtml(item)}</span>
+    </div>
+  `).join('');
+  box.style.display = 'flex';
+}
+
+function hideSuggestions() {
+  const box = document.getElementById('searchSuggestionsBox');
+  if (box) box.style.display = 'none';
+}
+
+function selectSuggestion(query) {
+  const inp = document.getElementById('searchInput');
+  inp.value = query;
+  hideSuggestions();
+  toggleClearBtn();
+  executeSearch(query);
+}
+
+if (typeof document.addEventListener === 'function') {
+  document.addEventListener('click', (e) => {
+    if (!e.target || typeof e.target.closest !== 'function' || !e.target.closest('.search-input-wrap')) {
+      hideSuggestions();
+    }
+  });
+}
+
 function toggleClearBtn() {
   const inp = document.getElementById('searchInput');
   const btn = document.getElementById('btnClearSearch');
@@ -592,17 +656,23 @@ function clearSearchInput() {
   const inp = document.getElementById('searchInput');
   inp.value = '';
   toggleClearBtn();
+  hideSuggestions();
   inp.focus();
 }
 
 let searchController;
 async function handleSearch(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
+  hideSuggestions();
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  executeSearch(q);
+}
+
+async function executeSearch(query) {
   if (isMustVoteLocked()) {
     return showToast('Vote 👍 ou 👎 na música atual primeiro!');
   }
-  const q = document.getElementById('searchInput').value.trim();
-  if (!q) return;
 
   searchController?.abort();
   const controller = searchController = new AbortController();
@@ -610,7 +680,7 @@ async function handleSearch(e) {
   resultsBox.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);">🔎 Buscando músicas...</div>`;
 
   try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
     if (!res.ok) throw new Error('Busca indisponível.');
     const data = await res.json();
     currentSearchResults = data.results || [];
