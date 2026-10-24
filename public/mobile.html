@@ -46,17 +46,18 @@
   </div>
 
   <main class="container">
-    <!-- BARRA RÁPIDA: MODO JBL + TRANSMITIR P/ TV + MOSTRAR QR CODE -->
-    <div class="top-tools-row">
-      <button id="btnToggleJbl" class="btn-tool" onclick="toggleJblMode()">
-        🔊 Modo JBL
+    <!-- BOTÃO PRINCIPAL: CONVIDAR GALERA COM QR CODE -->
+    <div class="top-invite-row">
+      <button type="button" class="btn-invite-party" onclick="openQrModal()">
+        📲 Convidar a Galera • QR Code
       </button>
-      <button class="btn-tool" onclick="castToTv()">
-        📺 Parear TV
-      </button>
-      <button class="btn-tool" onclick="openQrModal()">
-        📱 QR Code
-      </button>
+    </div>
+
+    <!-- ELEMENTOS DE CONTROLE INTERNOS (MANTIDOS OCULTOS PARA COMPATIBILIDADE) -->
+    <div style="display:none;" aria-hidden="true">
+      <button id="btnToggleJbl" onclick="toggleJblMode()"></button>
+      <button id="btnMediaAudio" onclick="setJblMediaMode('audio')"></button>
+      <button id="btnMediaVideo" onclick="setJblMediaMode('video')"></button>
     </div>
 
     <!-- SELETOR DOS DOIS MODOS NO APP -->
@@ -67,14 +68,6 @@
       <button id="mobBtnDesafio" class="mob-mode-btn desafio" onclick="changeAppMode('desafio')">
         🔥 Modo Desafio
       </button>
-    </div>
-
-    <div class="media-choice" role="group" aria-label="Formato de reprodução neste aparelho">
-      <span>Reprodução neste aparelho</span>
-      <div class="media-choice-buttons">
-        <button id="btnMediaAudio" type="button" class="active" aria-pressed="true" onclick="setJblMediaMode('audio')">🎵 Só áudio · mais leve</button>
-        <button id="btnMediaVideo" type="button" aria-pressed="false" onclick="setJblMediaMode('video')">🎬 Com vídeo</button>
-      </div>
     </div>
 
     <!-- CARD: TOCANDO AGORA + VOTAÇÃO (NO MODO DESAFIO) -->
@@ -226,51 +219,7 @@
     </section>
   </main>
 
-  <!-- MODAL DE PAREAR NA TV (ESCOLHA: TELÃO DIRETO, CLIPE OU SÓ MÚSICA) -->
-  <div id="castModal" class="qr-modal" onclick="closeCastModal()">
-    <div class="qr-modal-card" onclick="event.stopPropagation()">
-      <h2 style="font-size: 20px; font-weight: 900;">📺 Parear na TV</h2>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-        Como você prefere curtir a festa na TV?
-      </p>
 
-      <!-- DICA DE OURO: TELÃO NATIVO NA TV -->
-      <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 12px; margin-bottom: 12px; text-align: left;">
-        <div style="font-weight: 900; font-size: 13px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-          ⭐ MELHOR OPÇÃO: Abrir na própria TV
-        </div>
-        <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
-          Abra o navegador da TV (Samsung, LG, etc.) e acesse:<br/>
-          <strong style="color: #fff; font-size: 13px;">jukebox-da-galera.onrender.com/tv</strong><br/>
-          Mostra o clipe em tela cheia, o QR Code e toca a noite toda sem gastar a bateria do celular!
-        </div>
-      </div>
-
-      <button type="button" class="cast-choice-btn video" onclick="startCastWithMode('video')">
-        <span style="font-size: 28px;">🎬</span>
-        <div>
-          <div style="font-weight: 900; font-size: 15px; color: #38bdf8;">Música + Vídeo (AirPlay / Clipe)</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-            Envia o clipe para a TV via AirPlay ou Chromecast com imagem e som (evita tela preta).
-          </div>
-        </div>
-      </button>
-
-      <button type="button" class="cast-choice-btn fast" onclick="startCastWithMode('audio')" style="margin-top: 8px;">
-        <span style="font-size: 28px;">🎵</span>
-        <div>
-          <div style="font-weight: 900; font-size: 15px; color: #34d399;">Só Áudio (Caixa Bluetooth / JBL)</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-            Sem carregar vídeo. Ideal para caixas de som Bluetooth ou JBL no celular.
-          </div>
-        </div>
-      </button>
-
-      <button type="button" class="btn-tool" style="width: 100%; margin-top: 10px;" onclick="closeCastModal()">
-        Fechar ✕
-      </button>
-    </div>
-  </div>
 
   <!-- MODAL DE QR CODE NA TELA DO CELULAR -->
   <div id="qrModal" class="qr-modal" onclick="closeQrModal(event)">

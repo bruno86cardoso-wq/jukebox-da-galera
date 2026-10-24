@@ -4,7 +4,7 @@ let myPlayerName = localStorage.getItem('jukebox_player_name') || '';
 let latestState = null;
 let currentSearchResults = [];
 let jblModeActive = false;
-let jblMediaMode = localStorage.getItem('jukebox_media_mode') === 'video' ? 'video' : 'audio';
+let jblMediaMode = 'audio';
 let jblCurrentSongId = null;
 let jblCurrentVideoId = null;
 let jblLoadedMediaMode = null;
@@ -175,14 +175,15 @@ socket.on('playerCommand', ({ command }) => {
   }
 });
 
-async function toggleJblMode() {
-  if (!jblModeActive) {
+async function toggleJblMode(forcedState) {
+  const nextState = typeof forcedState === 'boolean' ? forcedState : !jblModeActive;
+  if (nextState === jblModeActive) return;
+  if (nextState) {
     jblModeActive = true;
     updateJblUi();
     if (navigator.wakeLock) {
       navigator.wakeLock.request('screen').catch(() => {});
     }
-    showToast(jblMediaMode === 'audio' ? '🎵 Só áudio ativado neste aparelho.' : '🎬 Vídeo ativado neste aparelho.');
     if (latestState && latestState.currentSong) {
       syncJblPlayer(latestState.currentSong);
     }
@@ -205,7 +206,6 @@ async function toggleJblMode() {
     jblVideoEl.pause();
     jblVideoEl.removeAttribute('src');
     jblVideoEl.load();
-    showToast('🔇 Modo JBL desligado neste celular.');
     updateJblUi();
   }
 }
@@ -221,12 +221,20 @@ function setJblMediaMode(mode) {
 
 function updateJblUi() {
   const btn = document.getElementById('btnToggleJbl');
-  btn.classList.toggle('jbl-active', jblModeActive);
-  btn.textContent = jblModeActive ? '🔊 Tocando neste aparelho' : '🔊 Tocar aqui / JBL';
-  document.getElementById('jblPlayerBox').style.display = jblModeActive && latestState?.currentSong ? 'block' : 'none';
-  document.getElementById('jblModeStatusText').textContent = jblMediaMode === 'audio' ? '🎵 Som no Celular' : '🎬 Clipe com Vídeo';
-  jblAudioEl.style.display = jblMediaMode === 'audio' ? 'block' : 'none';
-  jblClipEl.style.display = jblMediaMode === 'video' ? 'block' : 'none';
+  if (btn) {
+    btn.classList.toggle('jbl-active', jblModeActive);
+    btn.textContent = jblModeActive ? '🔊 Tocando neste aparelho' : '🔊 Tocar aqui / JBL';
+  }
+  const box = document.getElementById('jblPlayerBox');
+  if (box) {
+    box.style.display = jblModeActive && latestState?.currentSong ? 'block' : 'none';
+  }
+  const statusText = document.getElementById('jblModeStatusText');
+  if (statusText) {
+    statusText.textContent = '🎵 Som no Celular / JBL';
+  }
+  if (jblAudioEl) jblAudioEl.style.display = jblMediaMode === 'audio' ? 'block' : 'none';
+  if (jblClipEl) jblClipEl.style.display = jblMediaMode === 'video' ? 'block' : 'none';
   const pillAudio = document.getElementById('btnPillAudio');
   const pillVideo = document.getElementById('btnPillVideo');
   if (pillAudio && pillVideo) {
@@ -235,19 +243,19 @@ function updateJblUi() {
   }
   for (const mode of ['audio', 'video']) {
     const button = document.getElementById(mode === 'audio' ? 'btnMediaAudio' : 'btnMediaVideo');
-    button.classList.toggle('active', jblMediaMode === mode);
-    button.setAttribute('aria-pressed', String(jblMediaMode === mode));
+    if (button) {
+      button.classList.toggle('active', jblMediaMode === mode);
+      button.setAttribute('aria-pressed', String(jblMediaMode === mode));
+    }
   }
   updatePlaybackStatus();
 }
 
 function castToTv() {
-  document.getElementById('castModal').style.display = 'flex';
+  openQrModal();
 }
 
-function closeCastModal() {
-  document.getElementById('castModal').style.display = 'none';
-}
+function closeCastModal() {}
 
 async function startCastWithMode(mode) {
   closeCastModal();

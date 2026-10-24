@@ -11,7 +11,7 @@ let currentQrMode = 'auto';
 let lastState = null;
 let audioUnlocked = false;
 let isPrimaryTv = false;
-let tvMediaMode = 'audio'; // 'audio' (padrão rápido) | 'video' (clipe)
+let tvMediaMode = 'video'; // Padrão no Telão é Vídeo + Áudio! (se falhar, cai para Capa + Áudio)
 let tvLoadedMediaMode = null;
 
 function setTvMediaMode(mode) {
@@ -120,6 +120,13 @@ videoEl.addEventListener('ended', () => {
       action: 'songEnded',
       payload: { songId: currentPlayingSongId }
     });
+  }
+});
+
+videoEl.addEventListener('error', () => {
+  if (isPrimaryTv && currentVideoId && tvMediaMode === 'video') {
+    console.log('Vídeo indisponível no Telão. Alternando automaticamente para capa + áudio.');
+    setTvMediaMode('audio');
   }
 });
 
