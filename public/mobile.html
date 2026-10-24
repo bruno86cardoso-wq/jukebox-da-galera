@@ -91,15 +91,60 @@
         </div>
       </div>
 
-      <!-- PLAYER EMBUTIDO QUANDO O "MODO JBL (TOCAR NESTE CELULAR)" ESTÁ ATIVO -->
+      <!-- PLAYER EMBUTIDO PREMIUM QUANDO O "MODO JBL (TOCAR NESTE CELULAR)" ESTÁ ATIVO -->
       <div id="jblPlayerBox" class="jbl-player-box">
-        <div class="jbl-audio-status">
-          <span id="jblModeStatusText">🎵 Só áudio · sem carregar o clipe</span>
+        <div class="custom-player-wrapper">
+          <!-- Top Bar: Status + Seletor Áudio / Clipe -->
+          <div class="player-top-row">
+            <div class="player-live-status">
+              <span id="playerEqAnimation" class="live-eq-animation">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </span>
+              <span id="jblModeStatusText">🎵 Tocando no Celular / JBL</span>
+            </div>
+            <div class="player-mode-pills">
+              <button type="button" id="btnPillAudio" class="player-pill active" onclick="setJblMediaMode('audio')">🎵 Áudio</button>
+              <button type="button" id="btnPillVideo" class="player-pill" onclick="setJblMediaMode('video')">🎬 Clipe</button>
+            </div>
+          </div>
+
+          <!-- Mídia (Áudio oculto sem controles feios nativos, Vídeo moderno para modo clipe) -->
+          <audio id="mobJblAudio" preload="auto" aria-label="Reprodutor de música" class="native-audio-hidden"></audio>
+          <video id="mobJblVideo" controls preload="auto" playsinline x-webkit-airplay="allow" aria-label="Reprodutor de clipe"></video>
+
+          <!-- Timeline Customizada (Barra de Progresso e Tempo) -->
+          <div class="custom-timeline-box">
+            <span id="playerCurrentTime" class="time-label">0:00</span>
+            <div id="playerProgressTrack" class="progress-track" onclick="seekJblPlayer(event)">
+              <div id="playerProgressBar" class="progress-bar-fill">
+                <div class="progress-thumb"></div>
+              </div>
+            </div>
+            <span id="playerTotalTime" class="time-label">0:00</span>
+          </div>
+
+          <!-- Controles Principais Customizados Estilo Spotify -->
+          <div class="custom-controls-row">
+            <button type="button" class="ctrl-btn-round secondary" onclick="remoteControl('previousSong')" title="Voltar música" aria-label="Voltar música">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+
+            <button type="button" id="btnCustomPlayPause" class="ctrl-btn-round play-pause-main" onclick="toggleJblPlayPause()" title="Play / Pause" aria-label="Play ou Pause">
+              <svg id="iconCustomPlay" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="iconCustomPause" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+
+            <button type="button" class="ctrl-btn-round secondary" onclick="remoteControl('skipSong')" title="Próxima música" aria-label="Próxima música">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+          </div>
+
+          <p id="jblPlaybackStatus" role="status" class="player-sub-status">Aguardando música.</p>
+          <button id="btnResumeAudio" type="button" class="jbl-media-toggle pulse" hidden onclick="resumeJblPlayback()">▶ Tocar música</button>
         </div>
-        <audio id="mobJblAudio" controls preload="auto" aria-label="Reprodutor de música"></audio>
-        <video id="mobJblVideo" controls preload="auto" playsinline x-webkit-airplay="allow" aria-label="Reprodutor de clipe"></video>
-        <p id="jblPlaybackStatus" role="status">Aguardando música.</p>
-        <button id="btnResumeAudio" type="button" class="jbl-media-toggle" hidden onclick="resumeJblPlayback()">▶ Tocar música</button>
       </div>
 
       <!-- ÁREA DE VOTAÇÃO OBRIGATÓRIA (APENAS NO MODO DESAFIO) -->

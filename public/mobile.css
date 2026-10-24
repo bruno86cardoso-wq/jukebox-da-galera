@@ -211,31 +211,247 @@ html, body {
 }
 
 .jbl-player-box {
-  margin-bottom: 12px;
-  border-radius: 14px;
-  overflow: hidden;
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(19, 24, 41, 0.96), rgba(12, 16, 28, 0.98));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 14px 16px;
   display: none;
+  position: relative;
+  overflow: hidden;
 }
 
-.media-choice { margin: 12px 0 16px; color: #cbd5e1; font-size: 12px; }
-.media-choice-buttons { display: flex; gap: 8px; margin-top: 7px; }
-.media-choice-buttons button { flex: 1; padding: 12px 8px; border: 1px solid #475569; border-radius: 12px; background: #1e293b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-.media-choice-buttons button.active { border-color: #34d399; background: #065f46; }
-.media-choice-buttons button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-.jbl-player-box audio { width: 100%; margin-top: 12px; }
-#jblPlaybackStatus { margin: 8px 0; font-size: 12px; color: #cbd5e1; }
+.jbl-player-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #06b6d4, #10b981, transparent);
+}
 
-.jbl-audio-status {
+.custom-player-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.player-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.player-live-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 800;
   color: #38bdf8;
+}
+
+/* Animação do equalizador em tempo real */
+.live-eq-animation {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.live-eq-animation .eq-bar {
+  width: 3px;
+  background: #38bdf8;
+  border-radius: 1px;
+  height: 4px;
+  transition: height 0.2s;
+}
+
+.live-eq-animation.playing .eq-bar:nth-child(1) {
+  animation: eqBounce 0.8s ease-in-out infinite alternate;
+}
+.live-eq-animation.playing .eq-bar:nth-child(2) {
+  animation: eqBounce 1.1s ease-in-out 0.2s infinite alternate;
+}
+.live-eq-animation.playing .eq-bar:nth-child(3) {
+  animation: eqBounce 0.7s ease-in-out 0.4s infinite alternate;
+}
+.live-eq-animation.playing .eq-bar:nth-child(4) {
+  animation: eqBounce 0.9s ease-in-out 0.1s infinite alternate;
+}
+
+@keyframes eqBounce {
+  0% { height: 3px; background: #38bdf8; }
+  50% { height: 14px; background: #34d399; }
+  100% { height: 6px; background: #06b6d4; }
+}
+
+.player-mode-pills {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.player-pill {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.player-pill.active {
+  background: linear-gradient(135deg, #06b6d4, #2563eb);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+}
+
+/* Oculta os controles brutos nativos feios do navegador */
+.jbl-player-box audio,
+.native-audio-hidden {
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+.jbl-player-box video {
+  width: 100%;
+  max-height: 210px;
+  border-radius: 14px;
+  margin: 6px 0;
+  background: #000;
+  display: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Timeline Customizada */
+.custom-timeline-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.time-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: center;
+}
+
+.progress-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  overflow: visible;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #06b6d4, #10b981);
+  border-radius: 999px;
+  position: relative;
+  transition: width 0.15s ease-out;
+}
+
+.progress-thumb {
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.9), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Controles Principais de Áudio */
+.custom-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin: 6px 0;
+}
+
+.ctrl-btn-round {
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ctrl-btn-round.secondary {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+}
+
+.ctrl-btn-round.secondary:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ctrl-btn-round.play-pause-main {
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(135deg, #06b6d4, #2563eb);
+  color: #fff;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.55);
+}
+
+.ctrl-btn-round.play-pause-main:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.7);
+}
+
+.player-sub-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.jbl-media-toggle.pulse {
+  animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 .jbl-media-toggle {

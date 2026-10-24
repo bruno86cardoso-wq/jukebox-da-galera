@@ -14,18 +14,88 @@ const jblClipEl = document.getElementById('mobJblVideo');
 let jblVideoEl = jblMediaMode === 'audio' ? jblAudioEl : jblClipEl;
 let jblPlaybackState = 'idle';
 
+function formatTime(seconds) {
+  if (isNaN(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function onJblTimeUpdate() {
+  const el = jblVideoEl;
+  if (!el) return;
+  const current = el.currentTime || 0;
+  const total = el.duration || 0;
+  if (total > 0) {
+    const pct = Math.min(100, Math.max(0, (current / total) * 100));
+    const bar = document.getElementById('playerProgressBar');
+    if (bar) bar.style.width = pct + '%';
+
+    const curLabel = document.getElementById('playerCurrentTime');
+    if (curLabel) curLabel.textContent = formatTime(current);
+
+    const totLabel = document.getElementById('playerTotalTime');
+    if (totLabel) totLabel.textContent = formatTime(total);
+  }
+}
+
+function seekJblPlayer(e) {
+  const track = document.getElementById('playerProgressTrack');
+  const el = jblVideoEl;
+  if (!track || !el || !el.duration) return;
+  const rect = track.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+  el.currentTime = ratio * el.duration;
+  onJblTimeUpdate();
+}
+
+function toggleJblPlayPause() {
+  if (!jblModeActive) {
+    toggleJblMode();
+    return;
+  }
+  if (jblVideoEl.paused) {
+    playJblMedia();
+  } else {
+    jblVideoEl.pause();
+  }
+}
+
 function updatePlaybackStatus(status = jblPlaybackState) {
   jblPlaybackState = status;
   const labels = { idle: 'Aguardando música.', loading: 'Carregando música…', playing: 'Tocando neste aparelho',
     paused: 'Música pausada.', blocked: 'Toque em ▶ Tocar música para liberar o som no celular.',
     error: 'Não foi possível tocar esta música. Toque em tentar novamente ou pule.' };
-  document.getElementById('jblPlaybackStatus').textContent = labels[status] || status;
+  
+  const statusEl = document.getElementById('jblPlaybackStatus');
+  if (statusEl) statusEl.textContent = labels[status] || status;
+  
   const button = document.getElementById('btnResumeAudio');
-  button.hidden = !['blocked', 'error', 'paused', 'loading'].includes(status);
-  button.textContent = status === 'error' ? '↻ Tentar novamente' : (status === 'playing' ? '⏸ Pausar' : '▶ Tocar música');
+  if (button) {
+    button.hidden = !['blocked', 'error', 'paused', 'loading'].includes(status);
+    button.textContent = status === 'error' ? '↻ Tentar novamente' : (status === 'playing' ? '⏸ Pausar' : '▶ Tocar música');
+  }
+  
   const badge = document.getElementById('playbackBadge');
-  badge.textContent = !latestState?.currentSong ? 'AGUARDANDO MÚSICA' : !jblModeActive ? 'REPRODUÇÃO EM OUTRO APARELHO'
-    : { idle: 'AGUARDANDO', loading: 'CARREGANDO…', playing: '▶ TOCANDO AQUI', paused: '⏸ PAUSADO', blocked: 'TOQUE PARA OUVIR', error: 'ÁUDIO INDISPONÍVEL' }[status] || 'CARREGANDO…';
+  if (badge) {
+    badge.textContent = !latestState?.currentSong ? 'AGUARDANDO MÚSICA' : !jblModeActive ? 'REPRODUÇÃO EM OUTRO APARELHO'
+      : { idle: 'AGUARDANDO', loading: 'CARREGANDO…', playing: '▶ TOCANDO AQUI', paused: '⏸ PAUSADO', blocked: 'TOQUE PARA OUVIR', error: 'ÁUDIO INDISPONÍVEL' }[status] || 'CARREGANDO…';
+  }
+
+  // Atualiza controles customizados modernos estilo Spotify
+  const iconPlay = document.getElementById('iconCustomPlay');
+  const iconPause = document.getElementById('iconCustomPause');
+  const eq = document.getElementById('playerEqAnimation');
+  const isPlaying = status === 'playing';
+
+  if (iconPlay && iconPause) {
+    iconPlay.style.display = isPlaying ? 'none' : 'block';
+    iconPause.style.display = isPlaying ? 'block' : 'none';
+  }
+  if (eq) {
+    eq.classList.toggle('playing', isPlaying);
+  }
 }
 
 async function playJblMedia() {
@@ -55,6 +125,10 @@ for (const element of [jblAudioEl, jblClipEl]) {
       if (element === jblVideoEl && jblModeActive && jblCurrentSongId) updatePlaybackStatus(status);
     });
   }
+
+  element.addEventListener('timeupdate', () => {
+    if (element === jblVideoEl && jblModeActive) onJblTimeUpdate();
+  });
 
 
 element.addEventListener('ended', () => {
@@ -153,6 +227,12 @@ function updateJblUi() {
   document.getElementById('jblModeStatusText').textContent = jblMediaMode === 'audio' ? '🎵 Só áudio · sem carregar o clipe' : '🎬 Áudio e vídeo';
   jblAudioEl.style.display = jblMediaMode === 'audio' ? 'block' : 'none';
   jblClipEl.style.display = jblMediaMode === 'video' ? 'block' : 'none';
+  const pillAudio = document.getElementById('btnPillAudio');
+  const pillVideo = document.getElementById('btnPillVideo');
+  if (pillAudio && pillVideo) {
+    pillAudio.classList.toggle('active', jblMediaMode === 'audio');
+    pillVideo.classList.toggle('active', jblMediaMode === 'video');
+  }
   for (const mode of ['audio', 'video']) {
     const button = document.getElementById(mode === 'audio' ? 'btnMediaAudio' : 'btnMediaVideo');
     button.classList.toggle('active', jblMediaMode === mode);
