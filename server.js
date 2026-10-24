@@ -232,9 +232,10 @@ function createJukebox(options = {}) {
     console.log(`▶️ Preparando reprodução: "${songObj.title}" - ${songObj.artist} [videoId: ${songObj.videoId}]`);
     broadcastState();
 
-    // Pré-carrega a próxima da fila também!
-    if (gameState.queue.length > 0) {
-      resolveStreamUrl(gameState.queue[0].videoId).catch(() => {});
+    // Pré-carrega as próximas 2 da fila também!
+    for (let i = 0; i < Math.min(gameState.queue.length, 2); i++) {
+      resolveStreamUrl(gameState.queue[i].videoId, 'audio').catch(() => {});
+      resolveStreamUrl(gameState.queue[i].videoId, 'video').catch(() => {});
     }
 
     const streamUrl = await resolveStreamUrl(songObj.videoId);
@@ -684,7 +685,8 @@ function createJukebox(options = {}) {
       console.log(`➕ Música adicionada por ${player.name}: "${newSong.title}" (${newSong.videoId})`);
 
       // Já dispara a extração do stream em background imediatamente!
-      resolveStreamUrl(newSong.videoId).catch(() => {});
+      resolveStreamUrl(newSong.videoId, 'audio').catch(() => {});
+      resolveStreamUrl(newSong.videoId, 'video').catch(() => {});
 
       gameState.queue.push(newSong);
       rebalanceQueue();

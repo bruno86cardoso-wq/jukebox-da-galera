@@ -281,7 +281,9 @@ function syncJblPlayer(song) {
       : `/api/audio/${song.videoId}`;
 
     updatePlaybackStatus(latestState?.isPaused ? 'paused' : 'loading');
+    jblVideoEl.preload = 'auto';
     jblVideoEl.src = endpoint;
+    jblVideoEl.load();
     if (resumeTime > 0) {
       jblVideoEl.addEventListener('loadedmetadata', function onMeta() {
         jblVideoEl.removeEventListener('loadedmetadata', onMeta);
@@ -437,6 +439,15 @@ socket.on('stateUpdate', (state) => {
 
   syncJblPlayer(state.currentSong);
   updatePlaybackStatus();
+
+  // Pré-aquece a próxima música da fila para tocar sem nenhum delay!
+  if (state.queue && state.queue.length > 0 && jblModeActive) {
+    const nextSong = state.queue[0];
+    const endpoint = jblMediaMode === 'video'
+      ? `/api/stream/${nextSong.videoId}`
+      : `/api/audio/${nextSong.videoId}`;
+    fetch(endpoint, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
+  }
 
   document.getElementById('desafioStatsBox').style.display = isDesafio ? 'flex' : 'none';
   document.getElementById('livreStatsBox').style.display = isDesafio ? 'none' : 'flex';
@@ -733,6 +744,8 @@ function addSongByIndex(idx, btnEl) {
   if (isMustVoteLocked()) {
     return showToast('Vote na música atual primeiro para liberar!');
   }
+  // Pré-aquece a extração da mídia no servidor de imediato ao clicar em adicionar
+  fetch(`/api/audio/${song.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
   if (btnEl) {
     btnEl.disabled = true;
     btnEl.textContent = 'Adicionando...';
