@@ -697,6 +697,19 @@ function sendReaction(emoji) {
   socket.emit('sendReaction', { playerId: myPlayerId, emoji });
 }
 
+socket.on('liveReaction', ({ emoji }) => {
+  if (typeof document !== 'undefined' && document.body && typeof document.createElement === 'function') {
+    const el = document.createElement('div');
+    el.className = 'floating-emoji';
+    el.textContent = emoji;
+    el.style.left = `${Math.floor(20 + Math.random() * 60)}%`;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+    }, 2500);
+  }
+});
+
 function remoteControl(action) {
   if (action === 'togglePause' && jblModeActive) {
     if (jblVideoEl.paused) resumeJblPlayback();
