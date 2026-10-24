@@ -96,8 +96,8 @@
         <div class="jbl-audio-status">
           <span id="jblModeStatusText">🎵 Só áudio · sem carregar o clipe</span>
         </div>
-        <audio id="mobJblAudio" controls preload="none" aria-label="Reprodutor de música"></audio>
-        <video id="mobJblVideo" controls preload="none" playsinline x-webkit-airplay="allow" aria-label="Reprodutor de clipe"></video>
+        <audio id="mobJblAudio" controls preload="auto" aria-label="Reprodutor de música"></audio>
+        <video id="mobJblVideo" controls preload="auto" playsinline x-webkit-airplay="allow" aria-label="Reprodutor de clipe"></video>
         <p id="jblPlaybackStatus" role="status">Aguardando música.</p>
         <button id="btnResumeAudio" type="button" class="jbl-media-toggle" hidden onclick="resumeJblPlayback()">▶ Tocar música</button>
       </div>

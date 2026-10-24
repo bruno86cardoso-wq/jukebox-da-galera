@@ -17,15 +17,15 @@ let jblPlaybackState = 'idle';
 function updatePlaybackStatus(status = jblPlaybackState) {
   jblPlaybackState = status;
   const labels = { idle: 'Aguardando música.', loading: 'Carregando música…', playing: 'Tocando neste aparelho',
-    paused: 'Música pausada.', blocked: 'Toque em Tocar música para liberar o som.',
-    error: 'Não foi possível tocar esta música. Tente novamente ou pule para a próxima.' };
-  document.getElementById('jblPlaybackStatus').textContent = labels[status];
+    paused: 'Música pausada.', blocked: 'Toque em ▶ Tocar música para liberar o som no celular.',
+    error: 'Não foi possível tocar esta música. Toque em tentar novamente ou pule.' };
+  document.getElementById('jblPlaybackStatus').textContent = labels[status] || status;
   const button = document.getElementById('btnResumeAudio');
-  button.hidden = !['blocked', 'error', 'paused'].includes(status);
-  button.textContent = status === 'error' ? '↻ Tentar novamente' : '▶ Tocar música';
+  button.hidden = !['blocked', 'error', 'paused', 'loading'].includes(status);
+  button.textContent = status === 'error' ? '↻ Tentar novamente' : (status === 'playing' ? '⏸ Pausar' : '▶ Tocar música');
   const badge = document.getElementById('playbackBadge');
   badge.textContent = !latestState?.currentSong ? 'AGUARDANDO MÚSICA' : !jblModeActive ? 'REPRODUÇÃO EM OUTRO APARELHO'
-    : { idle: 'AGUARDANDO', loading: 'CARREGANDO…', playing: '▶ TOCANDO AQUI', paused: '⏸ PAUSADO', blocked: 'TOQUE PARA OUVIR', error: 'ÁUDIO INDISPONÍVEL' }[status];
+    : { idle: 'AGUARDANDO', loading: 'CARREGANDO…', playing: '▶ TOCANDO AQUI', paused: '⏸ PAUSADO', blocked: 'TOQUE PARA OUVIR', error: 'ÁUDIO INDISPONÍVEL' }[status] || 'CARREGANDO…';
 }
 
 async function playJblMedia() {
