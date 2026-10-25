@@ -89,12 +89,18 @@ function updatePlaybackStatus(status = jblPlaybackState) {
   // Atualiza controles customizados modernos estilo Spotify
   const iconPlay = document.getElementById('iconCustomPlay');
   const iconPause = document.getElementById('iconCustomPause');
+  const miniIconPlay = document.getElementById('miniIconPlay');
+  const miniIconPause = document.getElementById('miniIconPause');
   const eq = document.getElementById('playerEqAnimation');
   const isPlaying = status === 'playing';
 
   if (iconPlay && iconPause) {
     iconPlay.style.display = isPlaying ? 'none' : 'block';
     iconPause.style.display = isPlaying ? 'block' : 'none';
+  }
+  if (miniIconPlay && miniIconPause) {
+    miniIconPlay.style.display = isPlaying ? 'none' : 'block';
+    miniIconPause.style.display = isPlaying ? 'block' : 'none';
   }
   if (eq) {
     eq.classList.toggle('playing', isPlaying);
@@ -820,7 +826,41 @@ socket.on('stateUpdate', (state, you) => {
 
   // Sincroniza botões da busca atual com o estado da fila / música tocando
   refreshSearchResultsButtons();
+  updateTopMiniPlayerBar();
 });
+
+let currentActiveTab = 'search';
+
+function updateTopMiniPlayerBar() {
+  const bar = document.getElementById('topMiniPlayerBar');
+  if (!bar) return;
+  if (!latestState || !latestState.currentSong || currentActiveTab === 'player') {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const song = latestState.currentSong;
+  const titleEl = document.getElementById('miniPlayerTitle');
+  const artistEl = document.getElementById('miniPlayerArtist');
+  if (titleEl) titleEl.textContent = song.title;
+  if (artistEl) artistEl.textContent = song.artist;
+
+  const isPlaying = jblModeActive ? !jblVideoEl.paused : !latestState.isPaused;
+  const playIcon = document.getElementById('miniIconPlay');
+  const pauseIcon = document.getElementById('miniIconPause');
+  if (playIcon && pauseIcon) {
+    playIcon.style.display = isPlaying ? 'none' : 'block';
+    pauseIcon.style.display = isPlaying ? 'block' : 'none';
+  }
+}
+
+function handleMiniPlayPause() {
+  if (jblModeActive) {
+    toggleJblPlayPause();
+  } else {
+    remoteControl('togglePause');
+  }
+}
 
 function castVote(type) {
   socket.emit('voteSong', { type, songId: latestState?.currentSong?.id }, (res) => {
@@ -832,21 +872,46 @@ function castVote(type) {
   });
 }
 
-function sendReaction(emoji) {
+function spawnLocalReaction(emoji, x, y) {
+  if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') return;
+  const el = document.createElement('div');
+  el.className = 'floating-emoji';
+  el.textContent = emoji;
+
+  const rot = (Math.random() * 26 - 13).toFixed(1);
+  el.style.setProperty('--rot', `${rot}deg`);
+
+  if (x && y) {
+    const left = Math.max(16, Math.min(window.innerWidth - 75, x - 28 + (Math.random() * 30 - 15)));
+    el.style.left = `${left}px`;
+    el.style.top = `${y - 45}px`;
+    el.style.bottom = 'auto';
+  } else {
+    el.style.left = `${Math.floor(15 + Math.random() * 70)}%`;
+  }
+
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentNode) el.remove();
+  }, 2200);
+}
+
+function sendReaction(emoji, evt) {
+  if (evt) {
+    if (evt.cancelable && evt.type === 'touchstart') {
+      evt.preventDefault();
+    }
+    const x = evt.clientX || (evt.touches && evt.touches[0] ? evt.touches[0].clientX : null);
+    const y = evt.clientY || (evt.touches && evt.touches[0] ? evt.touches[0].clientY : null);
+    spawnLocalReaction(emoji, x, y);
+  } else {
+    spawnLocalReaction(emoji);
+  }
   socket.emit('sendReaction', { playerId: myPlayerId, emoji });
 }
 
 socket.on('liveReaction', ({ emoji }) => {
-  if (typeof document !== 'undefined' && document.body && typeof document.createElement === 'function') {
-    const el = document.createElement('div');
-    el.className = 'floating-emoji';
-    el.textContent = emoji;
-    el.style.left = `${Math.floor(20 + Math.random() * 60)}%`;
-    document.body.appendChild(el);
-    setTimeout(() => {
-      if (el.parentNode) el.remove();
-    }, 2500);
-  }
+  spawnLocalReaction(emoji);
 });
 
 socket.on('songVetoed', (info) => {
@@ -869,6 +934,7 @@ function remoteControl(action) {
 }
 
 function switchTab(tab) {
+  currentActiveTab = tab;
   const p = document.getElementById('tabPlayer');
   const s = document.getElementById('tabSearch');
   const q = document.getElementById('tabQueue');
@@ -883,6 +949,8 @@ function switchTab(tab) {
   document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search');
   document.getElementById('tabBtnQueue')?.classList.toggle('active', tab === 'queue');
   document.getElementById('tabBtnRank')?.classList.toggle('active', tab === 'rank');
+
+  updateTopMiniPlayerBar();
 }
 
 let suggestTimer = null;

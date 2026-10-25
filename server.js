@@ -434,7 +434,7 @@ function createJukebox(options = {}) {
     on('sendReaction', ({ emoji }, reply) => {
       current().party.react(session.playerId, emoji);
       reply({ ok: true });
-    }, 30);
+    }, 180);
 
     on('getSummary', (_, reply) => {
       reply({ ok: true, summary: current().party.summary() });
