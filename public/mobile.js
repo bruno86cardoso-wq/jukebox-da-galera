@@ -682,16 +682,23 @@ socket.on('stateUpdate', (state, you) => {
   const btnDislike = document.getElementById('btnVoteDislike');
   const dislikeSub = document.getElementById('dislikeBtnSub');
 
+  const searchHint = document.getElementById('searchNowPlayingHint');
+  const searchHintText = document.getElementById('searchNowPlayingText');
+
   if (!state.currentSong) {
     nowMystery.textContent = 'Silêncio no Telão';
     nowContent.innerHTML = `
       <div class="now-meta">
         <div class="now-title">Nenhuma música tocando</div>
-        <div class="now-artist">Pesquise abaixo para colocar a primeira música!</div>
+        <div class="now-artist">Toque em Buscar para pedir uma música!</div>
+        <button type="button" class="btn-goto-search" onclick="switchTab('search')">🔍 Ir para Buscar Músicas</button>
       </div>
     `;
     voteArea.style.display = 'none';
+    if (searchHint) searchHint.style.display = 'none';
   } else {
+    if (searchHint) searchHint.style.display = 'flex';
+    if (searchHintText) searchHintText.textContent = `Tocando: ${state.currentSong.title} • ${state.currentSong.artist}`;
     const s = state.currentSong;
     if (!s.isRevealed && isDesafio) {
       nowMystery.dataset.mystery = '1';
@@ -862,13 +869,20 @@ function remoteControl(action) {
 }
 
 function switchTab(tab) {
-  document.getElementById('tabSearch').style.display = tab === 'search' ? 'block' : 'none';
-  document.getElementById('tabQueue').style.display = tab === 'queue' ? 'block' : 'none';
-  document.getElementById('tabRank').style.display = tab === 'rank' ? 'block' : 'none';
+  const p = document.getElementById('tabPlayer');
+  const s = document.getElementById('tabSearch');
+  const q = document.getElementById('tabQueue');
+  const r = document.getElementById('tabRank');
 
-  document.getElementById('tabBtnSearch').classList.toggle('active', tab === 'search');
-  document.getElementById('tabBtnQueue').classList.toggle('active', tab === 'queue');
-  document.getElementById('tabBtnRank').classList.toggle('active', tab === 'rank');
+  if (p) p.style.display = tab === 'player' ? 'block' : 'none';
+  if (s) s.style.display = tab === 'search' ? 'block' : 'none';
+  if (q) q.style.display = tab === 'queue' ? 'block' : 'none';
+  if (r) r.style.display = tab === 'rank' ? 'block' : 'none';
+
+  document.getElementById('tabBtnPlayer')?.classList.toggle('active', tab === 'player');
+  document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search');
+  document.getElementById('tabBtnQueue')?.classList.toggle('active', tab === 'queue');
+  document.getElementById('tabBtnRank')?.classList.toggle('active', tab === 'rank');
 }
 
 let suggestTimer = null;
