@@ -244,24 +244,6 @@
         </span>
       </label>
 
-      <div class="settings-block">
-        <strong>🎨 Rodada temática</strong>
-        <small>A galera vê o tema no celular. No Desafio, música no tema aprovada vale +5.</small>
-        <div class="theme-chips">
-          <button onclick="setTheme('Anos 2000')">Anos 2000</button>
-          <button onclick="setTheme('Só funk')">Só funk</button>
-          <button onclick="setTheme('Música de corno')">Música de corno</button>
-          <button onclick="setTheme('Pagode')">Pagode</button>
-          <button onclick="setTheme('Rock')">Rock</button>
-          <button onclick="setTheme('Sertanejo')">Sertanejo</button>
-          <button onclick="setTheme('Flashback')">Flashback</button>
-        </div>
-        <form class="theme-form" onsubmit="event.preventDefault(); setTheme(this.theme.value)">
-          <input name="theme" maxlength="40" placeholder="Ou escreva um tema…" />
-          <button class="btn-action" type="submit">Definir</button>
-          <button class="btn-action" type="button" onclick="setTheme('')">Encerrar tema</button>
-        </form>
-      </div>
 
       <div class="settings-grid">
         <div class="settings-block">

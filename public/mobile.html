@@ -77,18 +77,6 @@
         <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
         <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
       </label>
-      <div class="theme-chips">
-        <button type="button" onclick="setTheme('Anos 2000')">Anos 2000</button>
-        <button type="button" onclick="setTheme('Só funk')">Só funk</button>
-        <button type="button" onclick="setTheme('Música de corno')">Corno</button>
-        <button type="button" onclick="setTheme('Pagode')">Pagode</button>
-        <button type="button" onclick="setTheme('Flashback')">Flashback</button>
-      </div>
-      <form class="theme-form" onsubmit="event.preventDefault(); setTheme(this.theme.value); this.reset();">
-        <input name="theme" class="input-text" maxlength="40" placeholder="🎨 Tema da rodada…" />
-        <button type="submit" class="btn-tool">Definir</button>
-        <button type="button" class="btn-tool" onclick="setTheme('')">Sem tema</button>
-      </form>
       <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo para todo mundo</button>
     </section>
 
