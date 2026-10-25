@@ -83,3 +83,35 @@ test('cliente mweb usa plugin local e permite o tempo inicial de validação', a
   assert.deepEqual(captured.args.slice(0, 4), ['--plugin-dirs', '/opt/ytdlp-plugins', '--extractor-args', 'youtube:player_client=mweb']);
   assert.equal(captured.options.timeout, 60000);
 });
+
+test('serve desativa relay e faz fallback para extração local quando relay falha', async () => {
+  let localExtractions = 0;
+  let doneFallback;
+  const fallbackCalled = new Promise(res => { doneFallback = res; });
+  const media = createMedia('fake', {
+    origin: 'https://dead-tunnel.example.test',
+    run: (_, args, options, done) => {
+      localExtractions++;
+      done(null, 'https://example.test/direct-audio');
+      doneFallback();
+    }
+  });
+
+  const fakeReq = { params: { videoId: 'abcdefghijk' }, headers: {} };
+  let statusCode = 200;
+  const headers = {};
+  const fakeRes = {
+    headersSent: false,
+    writeHead(code, h) { statusCode = code; Object.assign(headers, h); this.headersSent = true; },
+    status(code) { statusCode = code; return this; },
+    end() {},
+    on() {},
+    once() {},
+    emit() {},
+    destroy() { this.destroyed = true; }
+  };
+
+  await media.serve(fakeReq, fakeRes, 'audio');
+  await fallbackCalled;
+  assert.equal(localExtractions, 1);
+});

@@ -563,6 +563,14 @@ async function createPartyHere() {
   if (!created.ok) return showToast(created.error || 'Não foi possível criar a festa.');
   if (await finishEntry(created.code, name)) {
     showToast(`🎉 Festa criada! Código ${created.code}`);
+    // Assume automaticamente o som da festa no aparelho que acabou de criar a sala
+    jblModeActive = true;
+    updateJblUi();
+    if (navigator.wakeLock) {
+      navigator.wakeLock.request('screen').catch(() => {});
+    }
+    playJblMedia();
+    socket.claimPlayback().catch(() => {});
     openQrModal();
   }
 }
