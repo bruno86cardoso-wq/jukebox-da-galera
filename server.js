@@ -253,7 +253,12 @@ function createJukebox(options = {}) {
     try {
       const { videoId } = req.params;
       const resolved = await media.resolveStreamUrl(videoId, 'audio');
-      if (!resolved) return res.json({ ok: false, error: 'resolveStreamUrl returned null' });
+      if (!resolved) {
+        const { execFile } = require('node:child_process');
+        return execFile(YT_DLP_PATH, ['--no-playlist', '--no-warnings', '-g', '-f', 'bestaudio/best', `https://www.youtube.com/watch?v=${videoId}`], { timeout: 15000 }, (err, stdout, stderr) => {
+          res.json({ ok: false, error: 'resolveStreamUrl returned null', err: err?.message, stdout: stdout?.slice(0, 300), stderr: stderr?.slice(0, 500) });
+        });
+      }
       const client = resolved.url.startsWith('https:') ? https : http;
       client.get(resolved.url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }, upstreamRes => {
         upstreamRes.resume();
