@@ -3,7 +3,17 @@ let myPlayerId = localStorage.getItem('jukebox_player_id');
 let myPlayerName = localStorage.getItem('jukebox_player_name') || '';
 let latestState = null;
 let lastYou = null;
-let partyCode = readPartyFromUrl() || (() => { try { return localStorage.getItem('jukebox_last_party'); } catch { return null; } })();
+let partyCode = readPartyFromUrl() || (() => {
+  try {
+    const last = localStorage.getItem('jukebox_last_party');
+    const lastCreated = Number(localStorage.getItem('jukebox_last_party_created') || 0);
+    if (lastCreated && (Date.now() - lastCreated) > 10 * 60 * 60 * 1000) {
+      localStorage.removeItem('jukebox_last_party');
+      return null;
+    }
+    return last;
+  } catch { return null; }
+})();
 let currentSearchResults = [];
 let jblModeActive = false;
 let jblMediaMode = 'audio';
@@ -1261,6 +1271,36 @@ socket.on('themeChanged', ({ theme }) => {
   showToast(theme ? `🎨 Nova rodada temática: ${theme}!` : '🎨 Rodada temática encerrada.');
 });
 
+function leavePartyAndReset() {
+  if (!confirm('Deseja realmente sair desta festa?')) return;
+  try {
+    localStorage.removeItem('jukebox_last_party');
+    localStorage.removeItem('jukebox_last_party_created');
+  } catch {}
+  const url = new URL(window.location.href);
+  url.searchParams.delete('festa');
+  url.searchParams.delete('chave');
+  window.history.replaceState({}, '', url.pathname);
+  window.location.reload();
+}
+
+function endCurrentParty() {
+  if (!confirm('Tem certeza que deseja encerrar a festa agora? Isso vai exibir o resumo final para todos e liberar uma nova festa.')) return;
+  socket.emit('hostAction', { action: 'endParty' }, (res) => {
+    if (!res || !res.ok) {
+      showToast(res?.error || 'Não foi possível encerrar a festa.');
+    }
+  });
+}
+
+socket.on('partyEnded', ({ summary }) => {
+  try {
+    localStorage.removeItem('jukebox_last_party');
+    localStorage.removeItem('jukebox_last_party_created');
+  } catch {}
+  showSummary(summary, true);
+});
+
 function showSummaryToAll() {
   socket.emit('hostAction', { action: 'showSummary' });
 }
@@ -1269,10 +1309,13 @@ function requestSummary() {
   socket.emit('getSummary', {}, result => { if (result?.ok) showSummary(result.summary); });
 }
 
-socket.on('partySummary', showSummary);
+socket.on('partySummary', (summary) => showSummary(summary, false));
 
-function showSummary(summary) {
+function showSummary(summary, isEnded = false) {
   if (!summary) return;
+  const titleEl = document.getElementById('summaryModalTitle');
+  if (titleEl) titleEl.textContent = isEnded ? '🛑 Festa Encerrada! Resumo da noite:' : '📊 Resumo da festa';
+
   const list = document.getElementById('summaryList');
   const cards = summary.cards.map(card => `
     <div class="summary-item">
@@ -1289,6 +1332,26 @@ function showSummary(summary) {
       ${summary.achievements.map(p => `<div class="summary-ach"><strong>${escapeHtml(p.avatar)} ${escapeHtml(p.name)}</strong> ${p.badges.map(b => `<span title="${escapeHtml(b.name)}: ${escapeHtml(b.desc)}">${escapeHtml(b.icon)}</span>`).join('')}</div>`).join('')}
     </div>` : '';
   list.innerHTML = cards + badges;
+
+  const endedBox = document.getElementById('summaryEndedActions');
+  if (endedBox) {
+    if (isEnded) {
+      endedBox.style.display = 'flex';
+      if (lastYou?.isHost) {
+        endedBox.innerHTML = `
+          <button type="button" class="btn-new-party-primary" onclick="createPartyHere()">🎉 Iniciar Nova Festa Agora</button>
+        `;
+      } else {
+        endedBox.innerHTML = `
+          <button type="button" class="btn-new-party-primary" onclick="leavePartyAndReset()">🚪 Sair / Entrar em Outra Festa</button>
+        `;
+      }
+    } else {
+      endedBox.style.display = 'none';
+      endedBox.innerHTML = '';
+    }
+  }
+
   document.getElementById('summaryModal').hidden = false;
 }
 

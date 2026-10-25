@@ -38,6 +38,7 @@
       <span id="myAvatar">🎸</span>
       <span id="myName">Convidado</span>
       <button type="button" id="myPartyCode" class="party-pill" onclick="openQrModal()" title="Código da festa">····</button>
+      <button type="button" class="btn-leave-party" onclick="leavePartyAndReset()" title="Sair desta festa / Trocar sala">🚪 Sair</button>
     </div>
     <div id="desafioStatsBox" class="user-stats" style="display: none;">
       <span id="myAmmo" class="stat-pill ammo" title="Munição de Dislike">💣 3/3</span>
@@ -77,7 +78,10 @@
         <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
         <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
       </label>
-      <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo para todo mundo</button>
+      <div class="host-buttons-row">
+        <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
+        <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>
+      </div>
     </section>
 
     <div class="mode-switcher-card host-only">
@@ -301,8 +305,9 @@
   <!-- RESUMO DA FESTA -->
   <div id="summaryModal" class="summary-modal" hidden onclick="closeSummary(event)">
     <div class="summary-card" onclick="event.stopPropagation()">
-      <div class="summary-head"><h2>📊 Resumo da festa</h2><button class="btn-tool" onclick="closeSummary()">✕</button></div>
+      <div class="summary-head"><h2 id="summaryModalTitle">📊 Resumo da festa</h2><button class="btn-tool" onclick="closeSummary()">✕</button></div>
       <div id="summaryList" class="summary-list"></div>
+      <div id="summaryEndedActions" class="summary-ended-actions" style="display: none; margin-top: 14px;"></div>
     </div>
   </div>
 

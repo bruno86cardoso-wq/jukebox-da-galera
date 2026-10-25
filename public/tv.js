@@ -15,6 +15,12 @@ let lastYou = null;
 let initialPartyCode = readPartyFromUrl() || (() => {
   try {
     const last = localStorage.getItem('jukebox_last_party');
+    const lastCreated = Number(localStorage.getItem('jukebox_last_party_created') || 0);
+    // Se a última festa foi criada há mais de 10 horas, abre uma nova limpa
+    if (lastCreated && (Date.now() - lastCreated) > 10 * 60 * 60 * 1000) {
+      localStorage.removeItem('jukebox_last_party');
+      return null;
+    }
     return last && getHostKey(last) ? last : null; // reabre a última festa que este telão criou
   } catch { return null; }
 })();
@@ -741,6 +747,19 @@ async function showHostQr() {
     img.hidden = false;
   } catch {}
 }
+function endCurrentPartyTv() {
+  if (!confirm('Tem certeza que deseja encerrar a festa agora? Isso vai exibir o resumo final para a galera e liberar uma nova festa.')) return;
+  socket.emit('hostAction', { action: 'endParty' });
+}
+
+socket.on('partyEnded', ({ summary }) => {
+  try {
+    localStorage.removeItem('jukebox_last_party');
+    localStorage.removeItem('jukebox_last_party_created');
+  } catch {}
+  if (summary) showSummary(summary);
+});
+
 let newPartyArmed = false;
 async function startNewParty() {
   const btn = document.getElementById('btnNewParty');

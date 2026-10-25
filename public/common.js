@@ -61,7 +61,12 @@ function createPartySocket() {
     const result = await request('joinParty', { code, hostKey: hostKey || undefined });
     if (result.ok) {
       socket.party = { code: result.code, hostKey: result.isHost ? hostKey : null, isHost: result.isHost };
-      try { localStorage.setItem('jukebox_last_party', result.code); } catch {}
+      try {
+        localStorage.setItem('jukebox_last_party', result.code);
+        if (!localStorage.getItem('jukebox_last_party_created')) {
+          localStorage.setItem('jukebox_last_party_created', Date.now());
+        }
+      } catch {}
     }
     return result;
   };
@@ -69,6 +74,7 @@ function createPartySocket() {
     const created = await request('createParty', {});
     if (!created.ok) return created;
     saveHostKey(created.code, created.hostKey);
+    try { localStorage.setItem('jukebox_last_party_created', Date.now()); } catch {}
     return socket.joinParty(created.code, created.hostKey);
   };
   // Ao reconectar, volta para a mesma festa antes de qualquer outro evento.

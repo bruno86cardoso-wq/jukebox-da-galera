@@ -231,6 +231,11 @@ test('dedicatória, rodada temática, conquistas e resumo da festa', async t => 
   const shown = once(guest.events, 'partySummary');
   assert.equal((await host.call('hostAction', { action: 'showSummary' })).ok, true);
   assert.ok((await shown)[0].cards.length >= 3);
+
+  assert.equal((await guest.call('hostAction', { action: 'endParty' })).ok, false);
+  const ended = once(guest.events, 'partyEnded');
+  assert.equal((await host.call('hostAction', { action: 'endParty' })).ok, true);
+  assert.ok((await ended)[0].summary.cards.length >= 3);
 });
 
 test('fechar uma aba não desconecta a outra; reconexão preserva identidade', async t => {

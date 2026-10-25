@@ -447,6 +447,10 @@ function createJukebox(options = {}) {
         playerId: session.playerId,
         isActivePlayer: entry.activeTvSocketId === socket.id
       });
+      if (action === 'endParty') {
+        const code = entry.party.code;
+        setTimeout(() => removeParty(code), 2000);
+      }
       reply({ ok: true });
     });
 
