@@ -505,7 +505,10 @@ function readLoginName() {
 
 function showLogin(message) {
   document.getElementById('loginScreen').style.display = 'flex';
-  if (message) document.getElementById('loginHint').textContent = message;
+  if (message) {
+    document.getElementById('loginHint').textContent = message;
+    showToast(message);
+  }
 }
 
 // Entra na festa pelo código e registra o apelido. "silent" = reconexão automática.
@@ -517,7 +520,9 @@ async function enterParty(code, name, silent = false) {
   }
   const joined = await socket.joinParty(code);
   if (!joined.ok) {
-    showLogin(joined.error || 'Festa não encontrada. Confira o código.');
+    if (!silent) {
+      showLogin(joined.error || 'Festa não encontrada.');
+    }
     return false;
   }
   return finishEntry(joined.code, name);
@@ -537,10 +542,18 @@ async function finishEntry(code, name) {
   return true;
 }
 
-function joinParty() {
+async function joinParty() {
   const name = readLoginName();
   if (!name) return;
-  enterParty(document.getElementById('partyCodeInput').value, name);
+  const codeInput = document.getElementById('partyCodeInput');
+  const code = codeInput ? codeInput.value.trim() : '';
+  const success = await enterParty(code, name);
+  if (!success) {
+    // Se o código digitado ou salvo na URL não existe (ex: servidor reiniciou),
+    // cria uma nova festa na hora para o usuário entrar sem travar!
+    showToast('Festa anterior expirou. Criando uma nova festa para você...');
+    await createPartyHere();
+  }
 }
 
 async function createPartyHere() {
