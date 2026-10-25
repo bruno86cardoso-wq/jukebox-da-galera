@@ -31,7 +31,7 @@ function createPartySocket() {
   const emit = socket.emit.bind(socket);
   const panel = document.createElement('div');
   Object.assign(panel.style, { position: 'fixed', bottom: '10px', right: '10px', zIndex: '9000',
-    display: 'flex', gap: '8px', alignItems: 'center', padding: '6px 10px', borderRadius: '10px', background: 'rgba(22, 24, 39, 0.85)', backdropFilter: 'blur(8px)' });
+    display: 'flex', gap: '8px', alignItems: 'center', padding: '6px 10px', borderRadius: '10px', background: 'rgba(22, 24, 39, 0.85)', backdropFilter: 'blur(8px)', transition: 'opacity 0.3s' });
   const status = document.createElement('span');
   status.textContent = 'Conectando…';
   status.setAttribute('role', 'status');
@@ -103,11 +103,28 @@ function createPartySocket() {
     }
     return emit(event, data, callback);
   };
-  socket.on('connect', () => { status.textContent = '● Conectado'; });
+  socket.on('connect', () => {
+    status.textContent = '● Conectado';
+    panel.style.display = 'flex';
+    panel.style.opacity = '1';
+    clearTimeout(panel._hideTimer);
+    panel._hideTimer = setTimeout(() => {
+      panel.style.opacity = '0';
+      setTimeout(() => { if (panel.style.opacity === '0') panel.style.display = 'none'; }, 300);
+    }, 2000);
+  });
   socket.on('disconnect', () => {
+    clearTimeout(panel._hideTimer);
+    panel.style.display = 'flex';
+    panel.style.opacity = '1';
     status.textContent = 'Reconectando…';
   });
-  socket.on('connect_error', () => { status.textContent = 'Sem conexão'; });
+  socket.on('connect_error', () => {
+    clearTimeout(panel._hideTimer);
+    panel.style.display = 'flex';
+    panel.style.opacity = '1';
+    status.textContent = 'Sem conexão';
+  });
   socket.on('actionError', result => partyNotice(result.error));
   return socket;
 }

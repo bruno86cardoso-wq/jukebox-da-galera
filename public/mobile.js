@@ -33,9 +33,6 @@ function onJblTimeUpdate() {
     const bar = document.getElementById('playerProgressBar');
     if (bar) bar.style.width = pct + '%';
 
-    const miniBar = document.getElementById('miniPlayerProgress');
-    if (miniBar) miniBar.style.width = pct + '%';
-
     const curLabel = document.getElementById('playerCurrentTime');
     if (curLabel) curLabel.textContent = formatTime(current);
 
@@ -99,23 +96,9 @@ function updatePlaybackStatus(status = jblPlaybackState) {
     iconPlay.style.display = isPlaying ? 'none' : 'block';
     iconPause.style.display = isPlaying ? 'block' : 'none';
   }
-  const iconMiniPlay = document.getElementById('iconMiniPlay');
-  const iconMiniPause = document.getElementById('iconMiniPause');
-  if (iconMiniPlay && iconMiniPause) {
-    iconMiniPlay.style.display = isPlaying ? 'none' : 'block';
-    iconMiniPause.style.display = isPlaying ? 'block' : 'none';
-  }
   if (eq) {
     eq.classList.toggle('playing', isPlaying);
   }
-}
-
-function openFullPlayer() {
-  document.body.classList.add('full-player-open');
-}
-
-function closeFullPlayer() {
-  document.body.classList.remove('full-player-open');
 }
 
 async function playJblMedia() {
@@ -699,41 +682,17 @@ socket.on('stateUpdate', (state, you) => {
   const btnDislike = document.getElementById('btnVoteDislike');
   const dislikeSub = document.getElementById('dislikeBtnSub');
 
-  const miniTitle = document.getElementById('miniPlayerTitle');
-  const miniArtist = document.getElementById('miniPlayerArtist');
-  const miniThumb = document.getElementById('miniPlayerThumb');
-  const iconMiniPlay = document.getElementById('iconMiniPlay');
-  const iconMiniPause = document.getElementById('iconMiniPause');
-
   if (!state.currentSong) {
-    if (miniTitle) miniTitle.textContent = 'Nenhuma música tocando';
-    if (miniArtist) miniArtist.textContent = 'Pesquise acima para começar';
-    if (miniThumb) miniThumb.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' fill='%231e293b'%3E%3Crect width='44' height='44'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3E🎵%3C/text%3E%3C/svg%3E";
-    if (iconMiniPlay && iconMiniPause) {
-      iconMiniPlay.style.display = 'block';
-      iconMiniPause.style.display = 'none';
-    }
-    const miniProg = document.getElementById('miniPlayerProgress');
-    if (miniProg) miniProg.style.width = '0%';
     nowMystery.textContent = 'Silêncio no Telão';
     nowContent.innerHTML = `
       <div class="now-meta">
         <div class="now-title">Nenhuma música tocando</div>
-        <div class="now-artist">Pesquise uma música para começar a festa!</div>
+        <div class="now-artist">Pesquise abaixo para colocar a primeira música!</div>
       </div>
     `;
     voteArea.style.display = 'none';
   } else {
     const s = state.currentSong;
-    if (miniTitle) miniTitle.textContent = s.title;
-    if (miniArtist) miniArtist.textContent = s.artist;
-    if (miniThumb && s.thumbnail) miniThumb.src = s.thumbnail;
-
-    const isPlayingRemote = !state.isPaused;
-    if (!jblModeActive && iconMiniPlay && iconMiniPause) {
-      iconMiniPlay.style.display = isPlayingRemote ? 'none' : 'block';
-      iconMiniPause.style.display = isPlayingRemote ? 'block' : 'none';
-    }
     if (!s.isRevealed && isDesafio) {
       nowMystery.dataset.mystery = '1';
       nowMystery.textContent = `🕵️ Mistério (${s.mysteryRemainingSeconds}s)`;
@@ -851,6 +810,9 @@ socket.on('stateUpdate', (state, you) => {
       </div>
     `;
   }).join('');
+
+  // Sincroniza botões da busca atual com o estado da fila / música tocando
+  refreshSearchResultsButtons();
 });
 
 function castVote(type) {
@@ -976,15 +938,77 @@ if (typeof document.addEventListener === 'function') {
 function toggleClearBtn() {
   const inp = document.getElementById('searchInput');
   const btn = document.getElementById('btnClearSearch');
-  btn.style.display = inp.value.length > 0 ? 'flex' : 'none';
+  if (!btn) return;
+  const hasText = inp && inp.value.trim().length > 0;
+  const hasResults = currentSearchResults && currentSearchResults.length > 0;
+  btn.style.display = (hasText || hasResults) ? 'flex' : 'none';
+}
+
+function closeSearchResults() {
+  if (searchController) {
+    searchController.abort();
+    searchController = null;
+  }
+  currentSearchResults = [];
+  const inp = document.getElementById('searchInput');
+  if (inp) inp.value = '';
+  toggleClearBtn();
+  hideSuggestions();
+  const resultsBox = document.getElementById('searchResults');
+  if (resultsBox) {
+    resultsBox.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
+        Pesquise qualquer música ou clipe do <strong>YouTube Music</strong>!<br/>
+        <small>Você pode adicionar quantas quiser (a fila organiza até 2 seguidas por pessoa).</small>
+      </div>
+    `;
+  }
 }
 
 function clearSearchInput() {
+  closeSearchResults();
   const inp = document.getElementById('searchInput');
-  inp.value = '';
-  toggleClearBtn();
-  hideSuggestions();
-  inp.focus();
+  if (inp) inp.focus();
+}
+
+document.getElementById('searchInput')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeSearchResults();
+    e.target.blur();
+  }
+});
+
+function refreshSearchResultsButtons() {
+  if (!currentSearchResults || currentSearchResults.length === 0) return;
+  const queueVideoIds = new Set((latestState?.queue || []).map(item => item.videoId));
+  const currentVideoId = latestState?.currentSong?.videoId;
+
+  const buttons = document.querySelectorAll('#searchResults .btn-add');
+  buttons.forEach(btn => {
+    if (btn.dataset.adding === '1') return;
+    const vid = btn.dataset.vid;
+    if (!vid) return;
+
+    const inQueue = queueVideoIds.has(vid);
+    const isPlaying = currentVideoId && currentVideoId === vid;
+
+    if (inQueue) {
+      btn.disabled = true;
+      btn.textContent = '✓ Na Fila';
+      btn.classList.add('in-queue');
+      btn.classList.remove('is-playing');
+    } else if (isPlaying) {
+      btn.disabled = true;
+      btn.textContent = '▶ Tocando';
+      btn.classList.add('is-playing');
+      btn.classList.remove('in-queue');
+    } else {
+      btn.disabled = false;
+      btn.textContent = '+ Fila';
+      btn.classList.remove('in-queue');
+      btn.classList.remove('is-playing');
+    }
+  });
 }
 
 let searchController;
@@ -1004,33 +1028,86 @@ async function executeSearch(query) {
   searchController?.abort();
   const controller = searchController = new AbortController();
   const resultsBox = document.getElementById('searchResults');
-  resultsBox.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);">🔎 Buscando músicas...</div>`;
+  resultsBox.innerHTML = `
+    <div class="search-results-header">
+      <span class="search-results-count">Buscando...</span>
+      <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar</button>
+    </div>
+    <div style="text-align:center; padding:24px; color:var(--text-muted);">🔎 Buscando músicas no YouTube Music...</div>
+  `;
 
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
     if (!res.ok) throw new Error('Busca indisponível.');
     const data = await res.json();
     currentSearchResults = data.results || [];
+    toggleClearBtn();
+
     if (currentSearchResults.length === 0) {
-      resultsBox.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma música encontrada.</div>`;
+      resultsBox.innerHTML = `
+        <div class="search-results-header">
+          <span class="search-results-count">Nenhuma música encontrada</span>
+          <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
+        </div>
+        <div style="text-align:center; padding:24px; color:var(--text-muted);">Tente pesquisar por outro nome ou artista.</div>
+      `;
       return;
     }
 
-    resultsBox.innerHTML = currentSearchResults.map((song, idx) => `
-      <div class="song-item">
-        <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
-        <div class="song-item-info">
-          <div class="song-item-title">${escapeHtml(song.title)}</div>
-          <div class="song-item-sub">${escapeHtml(song.artist)} • ${escapeHtml(song.duration)}</div>
+    const queueVideoIds = new Set((latestState?.queue || []).map(item => item.videoId));
+    const currentVideoId = latestState?.currentSong?.videoId;
+
+    const listHtml = currentSearchResults.map((song, idx) => {
+      const inQueue = queueVideoIds.has(song.videoId);
+      const isPlaying = currentVideoId && currentVideoId === song.videoId;
+
+      let btnLabel = '+ Fila';
+      let btnDisabled = false;
+      let btnClass = 'btn-add';
+
+      if (inQueue) {
+        btnLabel = '✓ Na Fila';
+        btnDisabled = true;
+        btnClass = 'btn-add in-queue';
+      } else if (isPlaying) {
+        btnLabel = '▶ Tocando';
+        btnDisabled = true;
+        btnClass = 'btn-add is-playing';
+      }
+
+      return `
+        <div class="song-item">
+          <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
+          <div class="song-item-info">
+            <div class="song-item-title">${escapeHtml(song.title)}</div>
+            <div class="song-item-sub">${escapeHtml(song.artist)} • ${escapeHtml(song.duration)}</div>
+          </div>
+          <button type="button" class="${btnClass}" data-vid="${escapeHtml(song.videoId)}" ${btnDisabled ? 'disabled' : ''} onclick="addSongByIndex(${idx}, this)">
+            ${btnLabel}
+          </button>
         </div>
-        <button type="button" class="btn-add" onclick="addSongByIndex(${idx}, this)">
-          + Fila
-        </button>
+      `;
+    }).join('');
+
+    resultsBox.innerHTML = `
+      <div class="search-results-header">
+        <span class="search-results-count">Resultados (${currentSearchResults.length})</span>
+        <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
       </div>
-    `).join('');
+      ${listHtml}
+      <div style="text-align:center; padding: 14px 0 6px;">
+        <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
+      </div>
+    `;
   } catch (err) {
     if (err.name === 'AbortError') return;
-    resultsBox.innerHTML = `<div style="text-align:center; padding:24px; color:#ef4444;">Erro ao buscar músicas. Tente novamente.</div>`;
+    resultsBox.innerHTML = `
+      <div class="search-results-header">
+        <span class="search-results-count" style="color:#ef4444;">Erro na busca</span>
+        <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar</button>
+      </div>
+      <div style="text-align:center; padding:24px; color:#ef4444;">Erro ao buscar músicas. Tente novamente.</div>
+    `;
   }
 }
 
@@ -1044,25 +1121,31 @@ function addSongByIndex(idx, btnEl) {
   // Pré-aquece a extração da mídia no servidor de imediato ao clicar em adicionar
   fetch(`/api/audio/${song.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
   if (btnEl) {
+    btnEl.dataset.adding = '1';
     btnEl.disabled = true;
     btnEl.textContent = 'Adicionando...';
   }
   const dedicationInput = document.getElementById('dedicationInput');
-  const dedication = (dedicationInput.value || '').trim().slice(0, 60);
+  const dedication = (dedicationInput ? dedicationInput.value : '').trim().slice(0, 60);
   socket.emit('addSong', { song, dedication: dedication || undefined }, (res) => {
+    if (btnEl) delete btnEl.dataset.adding;
     if (!res || !res.ok) {
       showToast(res?.error || 'Erro ao adicionar');
       if (btnEl) {
         btnEl.disabled = false;
         btnEl.textContent = '+ Fila';
+        btnEl.classList.remove('in-queue');
       }
     } else {
       showToast(dedication ? '💌 Música com dedicatória na fila!' : '🎵 Música adicionada! Já vai tocar no Telão!');
-      dedicationInput.value = '';
+      if (dedicationInput) dedicationInput.value = '';
       if (btnEl) {
+        btnEl.disabled = true;
         btnEl.textContent = '✓ Na Fila';
+        btnEl.classList.add('in-queue');
       }
     }
+    refreshSearchResultsButtons();
   });
 }
 
