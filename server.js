@@ -214,6 +214,27 @@ function createJukebox(options = {}) {
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.get('/api/audio/:videoId', httpLimit, (req, res) => media.serve(req, res, 'audio'));
   app.get('/api/stream/:videoId', httpLimit, (req, res) => media.serve(req, res, 'video'));
+  app.get('/api/debug-media/:videoId', async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const resolved = await media.resolveStreamUrl(videoId, 'audio');
+      if (!resolved) return res.json({ ok: false, error: 'resolveStreamUrl returned null' });
+      const client = resolved.url.startsWith('https:') ? https : http;
+      client.get(resolved.url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }, upstreamRes => {
+        upstreamRes.resume();
+        res.json({
+          ok: true,
+          upstreamStatus: upstreamRes.statusCode,
+          upstreamHeaders: upstreamRes.headers,
+          urlSample: resolved.url.slice(0, 150)
+        });
+      }).on('error', err => {
+        res.json({ ok: false, upstreamError: err.message });
+      });
+    } catch (e) {
+      res.json({ ok: false, catchError: e.message });
+    }
+  });
 
   // Capa servida pelo próprio servidor para o telão poder ler as cores (canvas exige mesma origem).
   app.get('/api/thumb/:videoId', httpLimit, (req, res) => {
