@@ -33,6 +33,9 @@ function onJblTimeUpdate() {
     const bar = document.getElementById('playerProgressBar');
     if (bar) bar.style.width = pct + '%';
 
+    const miniBar = document.getElementById('miniPlayerProgress');
+    if (miniBar) miniBar.style.width = pct + '%';
+
     const curLabel = document.getElementById('playerCurrentTime');
     if (curLabel) curLabel.textContent = formatTime(current);
 
@@ -96,9 +99,23 @@ function updatePlaybackStatus(status = jblPlaybackState) {
     iconPlay.style.display = isPlaying ? 'none' : 'block';
     iconPause.style.display = isPlaying ? 'block' : 'none';
   }
+  const iconMiniPlay = document.getElementById('iconMiniPlay');
+  const iconMiniPause = document.getElementById('iconMiniPause');
+  if (iconMiniPlay && iconMiniPause) {
+    iconMiniPlay.style.display = isPlaying ? 'none' : 'block';
+    iconMiniPause.style.display = isPlaying ? 'block' : 'none';
+  }
   if (eq) {
     eq.classList.toggle('playing', isPlaying);
   }
+}
+
+function openFullPlayer() {
+  document.body.classList.add('full-player-open');
+}
+
+function closeFullPlayer() {
+  document.body.classList.remove('full-player-open');
 }
 
 async function playJblMedia() {
@@ -682,7 +699,22 @@ socket.on('stateUpdate', (state, you) => {
   const btnDislike = document.getElementById('btnVoteDislike');
   const dislikeSub = document.getElementById('dislikeBtnSub');
 
+  const miniTitle = document.getElementById('miniPlayerTitle');
+  const miniArtist = document.getElementById('miniPlayerArtist');
+  const miniThumb = document.getElementById('miniPlayerThumb');
+  const iconMiniPlay = document.getElementById('iconMiniPlay');
+  const iconMiniPause = document.getElementById('iconMiniPause');
+
   if (!state.currentSong) {
+    if (miniTitle) miniTitle.textContent = 'Nenhuma música tocando';
+    if (miniArtist) miniArtist.textContent = 'Pesquise acima para começar';
+    if (miniThumb) miniThumb.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' fill='%231e293b'%3E%3Crect width='44' height='44'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3E🎵%3C/text%3E%3C/svg%3E";
+    if (iconMiniPlay && iconMiniPause) {
+      iconMiniPlay.style.display = 'block';
+      iconMiniPause.style.display = 'none';
+    }
+    const miniProg = document.getElementById('miniPlayerProgress');
+    if (miniProg) miniProg.style.width = '0%';
     nowMystery.textContent = 'Silêncio no Telão';
     nowContent.innerHTML = `
       <div class="now-meta">
@@ -693,6 +725,15 @@ socket.on('stateUpdate', (state, you) => {
     voteArea.style.display = 'none';
   } else {
     const s = state.currentSong;
+    if (miniTitle) miniTitle.textContent = s.title;
+    if (miniArtist) miniArtist.textContent = s.artist;
+    if (miniThumb && s.thumbnail) miniThumb.src = s.thumbnail;
+
+    const isPlayingRemote = !state.isPaused;
+    if (!jblModeActive && iconMiniPlay && iconMiniPause) {
+      iconMiniPlay.style.display = isPlayingRemote ? 'none' : 'block';
+      iconMiniPause.style.display = isPlayingRemote ? 'block' : 'none';
+    }
     if (!s.isRevealed && isDesafio) {
       nowMystery.dataset.mystery = '1';
       nowMystery.textContent = `🕵️ Mistério (${s.mysteryRemainingSeconds}s)`;

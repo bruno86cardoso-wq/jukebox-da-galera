@@ -138,8 +138,18 @@
       <div id="mobRankList" class="results-list"></div>
     </section>
 
-    <!-- CARD: TOCANDO AGORA + VOTAÇÃO (NO MODO DESAFIO) -->
-    <section class="now-card">
+    <!-- BACKDROP DO FULL PLAYER SHEET -->
+    <div id="playerSheetBackdrop" class="player-sheet-backdrop" onclick="closeFullPlayer()"></div>
+
+    <!-- CARD: TOCANDO AGORA + VOTAÇÃO (EXPANSÍVEL ESTILO SPOTIFY / YOUTUBE MUSIC) -->
+    <section id="nowPlayerSheet" class="now-card full-player-sheet">
+      <div class="sheet-handle-row" onclick="closeFullPlayer()" title="Minimizar">
+        <div class="sheet-handle-bar"></div>
+        <button type="button" class="btn-sheet-close" aria-label="Minimizar Player">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+
       <div id="themeBanner" class="theme-banner" hidden></div>
       <div class="now-badge-row">
         <span id="playbackBadge" class="live-pill" onclick="handlePlaybackBadgeClick()" title="Toque para assumir o som neste aparelho">AGUARDANDO MÚSICA</span>
@@ -247,6 +257,27 @@
 
 
   </main>
+
+  <!-- MINI PLAYER FIXO NO RODAPÉ ESTILO SPOTIFY / YOUTUBE MUSIC -->
+  <aside id="miniPlayerBar" class="mini-player-bar" onclick="openFullPlayer()" aria-label="Player de Música">
+    <div id="miniPlayerProgress" class="mini-player-progress"></div>
+    <div class="mini-player-inner">
+      <img id="miniPlayerThumb" class="mini-player-thumb" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' fill='%231e293b'%3E%3Crect width='44' height='44'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3E🎵%3C/text%3E%3C/svg%3E" alt="Capa" />
+      <div class="mini-player-info">
+        <div id="miniPlayerTitle" class="mini-player-title">Nenhuma música tocando</div>
+        <div id="miniPlayerArtist" class="mini-player-artist">Toque para abrir o player</div>
+      </div>
+      <div class="mini-player-controls" onclick="event.stopPropagation()">
+        <button type="button" id="btnMiniPlayPause" class="mini-btn-ctrl play" onclick="remoteControl('togglePause')" title="Play / Pausar" aria-label="Play ou Pausar">
+          <svg id="iconMiniPlay" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="iconMiniPause" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button type="button" class="mini-btn-ctrl skip" onclick="remoteControl('skipSong')" title="Próxima música" aria-label="Próxima música">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
 
 
 
