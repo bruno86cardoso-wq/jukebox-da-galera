@@ -84,7 +84,7 @@ test('cliente mweb usa plugin local e permite o tempo inicial de validação', a
   assert.equal(captured.options.timeout, 60000);
 });
 
-test('serve desativa relay e faz fallback para extração local quando relay falha', async () => {
+test('serve faz fallback para extração local quando relay falha, sem desligar o relay', async () => {
   let localExtractions = 0;
   let doneFallback;
   const fallbackCalled = new Promise(res => { doneFallback = res; });
@@ -114,4 +114,7 @@ test('serve desativa relay e faz fallback para extração local quando relay fal
   await media.serve(fakeReq, fakeRes, 'audio');
   await fallbackCalled;
   assert.equal(localExtractions, 1);
+  // A próxima música continua indo para o computador da festa.
+  const next = await media.resolveStreamUrl('lmnopqrstuv', 'audio');
+  assert.equal(next.url, 'https://dead-tunnel.example.test/api/audio/lmnopqrstuv');
 });

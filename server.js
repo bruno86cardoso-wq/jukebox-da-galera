@@ -214,7 +214,7 @@ function createJukebox(options = {}) {
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.get('/api/audio/:videoId', httpLimit, (req, res) => media.serve(req, res, 'audio'));
   app.get('/api/stream/:videoId', httpLimit, (req, res) => media.serve(req, res, 'video'));
-  app.get('/api/debug-media/:videoId', async (req, res) => {
+  app.get('/api/debug-media/:videoId', httpLimit, async (req, res) => {
     try {
       const { videoId } = req.params;
       const resolved = await media.resolveStreamUrl(videoId, 'audio');
