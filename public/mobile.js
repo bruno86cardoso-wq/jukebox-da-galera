@@ -687,7 +687,7 @@ socket.on('stateUpdate', (state, you) => {
     nowContent.innerHTML = `
       <div class="now-meta">
         <div class="now-title">Nenhuma música tocando</div>
-        <div class="now-artist">Pesquise abaixo para colocar a primeira música!</div>
+        <div class="now-artist">Pesquise uma música para começar a festa!</div>
       </div>
     `;
     voteArea.style.display = 'none';
