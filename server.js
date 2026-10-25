@@ -97,6 +97,24 @@ function createJukebox(options = {}) {
           connectionInfo.tunnelStatus = 'ready';
           log(`✅ Link 4G/5G (Internet) pronto: ${publicUrl}`);
           broadcastAll();
+
+          // Sincroniza automaticamente o túnel local do PC com o servidor do Render!
+          if (!CLOUD_PUBLIC_URL) {
+            const cloudTarget = process.env.CLOUD_TARGET_URL || 'https://jukebox-da-galera.onrender.com';
+            const registerWithCloud = () => {
+              https.get(`${cloudTarget}/api/register-media-origin?origin=${encodeURIComponent(publicUrl)}`, res => {
+                res.resume();
+                if (res.statusCode === 200) {
+                  log(`🚀 Túnel do PC sincronizado com a nuvem no Render: ${publicUrl}`);
+                }
+              }).on('error', () => {});
+            };
+            registerWithCloud();
+            if (!global.__cloudSyncInterval) {
+              global.__cloudSyncInterval = setInterval(registerWithCloud, 45000);
+              global.__cloudSyncInterval.unref();
+            }
+          }
         }
       });
       t.on('error', err => { console.warn('⚠️ Erro no túnel Cloudflare:', err.message); connectionInfo.tunnelStatus = 'error'; broadcastAll(); });
@@ -212,6 +230,23 @@ function createJukebox(options = {}) {
     next();
   }
   app.get('/health', (req, res) => res.json({ ok: true }));
+  app.get('/api/register-media-origin', (req, res) => {
+    const { origin } = req.query;
+    if (origin) {
+      const ok = media.setRelayOrigin(origin);
+      if (!ok) return res.status(400).json({ ok: false, error: 'Origem HTTPS inválida.' });
+      log(`🔗 Provedor de mídia conectado da nuvem: ${media.getRelayOrigin()}`);
+    }
+    res.json({ ok: true, activeOrigin: media.getRelayOrigin() });
+  });
+  app.post('/api/register-media-origin', express.json(), (req, res) => {
+    const { origin } = req.body || {};
+    if (!origin) return res.status(400).json({ ok: false, error: 'origin required' });
+    const ok = media.setRelayOrigin(origin);
+    if (!ok) return res.status(400).json({ ok: false, error: 'Origem HTTPS inválida.' });
+    log(`🔗 Provedor de mídia conectado da nuvem: ${media.getRelayOrigin()}`);
+    res.json({ ok: true, activeOrigin: media.getRelayOrigin() });
+  });
   app.get('/api/audio/:videoId', httpLimit, (req, res) => media.serve(req, res, 'audio'));
   app.get('/api/stream/:videoId', httpLimit, (req, res) => media.serve(req, res, 'video'));
   app.get('/api/debug-media/:videoId', httpLimit, async (req, res) => {
