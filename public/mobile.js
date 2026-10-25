@@ -42,6 +42,8 @@ function onJblTimeUpdate() {
     const pct = Math.min(100, Math.max(0, (current / total) * 100));
     const bar = document.getElementById('playerProgressBar');
     if (bar) bar.style.width = pct + '%';
+    const miniBar = document.getElementById('topMiniProgressBar');
+    if (miniBar) miniBar.style.width = pct + '%';
 
     const curLabel = document.getElementById('playerCurrentTime');
     if (curLabel) curLabel.textContent = formatTime(current);
@@ -63,6 +65,7 @@ function seekJblPlayer(e) {
 }
 
 function toggleJblPlayPause() {
+  try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) {}
   if (!jblModeActive) {
     toggleJblMode();
     return;
@@ -478,6 +481,14 @@ async function sharePartyLink() {
   }
 }
 
+function sharePartyWhatsApp() {
+  try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {}
+  const code = socket.party?.code || partyCode;
+  const url = partyInviteUrl || window.location.href;
+  const msg = encodeURIComponent(`🎉 Vem pra nossa festa no Jukebox da Galera!\n🎵 Peça suas músicas aqui: ${url}\n🔑 Código da festa: ${code}`);
+  window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+}
+
 if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
   document.addEventListener('click', (e) => {
     if (jblModeActive && jblVideoEl && jblVideoEl.paused && !latestState?.isPaused && jblCurrentSongId && jblPlaybackState === 'blocked') {
@@ -786,7 +797,19 @@ socket.on('stateUpdate', (state, you) => {
   document.getElementById('btnSearchSubmit').disabled = locked;
 
   // Atualiza Fila no celular
-  document.getElementById('mobQueueCount').textContent = state.queue.length;
+  const mobCountEl = document.getElementById('mobQueueCount');
+  const prevQueueCount = Number(mobCountEl?.textContent || 0);
+  const newQueueCount = state.queue.length;
+  if (mobCountEl) mobCountEl.textContent = newQueueCount;
+  if (newQueueCount > prevQueueCount) {
+    const btnQueue = document.getElementById('tabBtnQueue');
+    if (btnQueue) {
+      btnQueue.classList.remove('queue-bump');
+      void btnQueue.offsetWidth;
+      btnQueue.classList.add('queue-bump');
+      setTimeout(() => btnQueue.classList.remove('queue-bump'), 800);
+    }
+  }
   const qList = document.getElementById('mobQueueList');
   if (state.queue.length === 0) {
     qList.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px;">Nenhuma música na fila ainda.</div>`;
@@ -841,6 +864,16 @@ socket.on('stateUpdate', (state, you) => {
 
 let currentActiveTab = 'search';
 
+function parseDurationToSeconds(dur) {
+  if (typeof dur === 'number') return dur;
+  if (!dur || typeof dur !== 'string') return 0;
+  const parts = dur.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
+}
+
 function updateTopMiniPlayerBar() {
   const bar = document.getElementById('topMiniPlayerBar');
   if (!bar) return;
@@ -862,9 +895,29 @@ function updateTopMiniPlayerBar() {
     playIcon.style.display = isPlaying ? 'none' : 'block';
     pauseIcon.style.display = isPlaying ? 'block' : 'none';
   }
+
+  if (!jblModeActive && song) {
+    const elapsed = song.elapsedSeconds || 0;
+    const total = parseDurationToSeconds(song.duration);
+    const miniBar = document.getElementById('topMiniProgressBar');
+    if (miniBar) {
+      const pct = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
+      miniBar.style.width = pct + '%';
+    }
+    const playerBar = document.getElementById('playerProgressBar');
+    if (playerBar && total > 0) {
+      const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+      playerBar.style.width = pct + '%';
+    }
+    const curLabel = document.getElementById('playerCurrentTime');
+    if (curLabel) curLabel.textContent = formatTime(elapsed);
+    const totLabel = document.getElementById('playerTotalTime');
+    if (totLabel && total > 0) totLabel.textContent = formatTime(total);
+  }
 }
 
 function handleMiniPlayPause() {
+  try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) {}
   if (jblModeActive) {
     toggleJblPlayPause();
   } else {
@@ -907,6 +960,7 @@ function spawnLocalReaction(emoji, x, y) {
 }
 
 function sendReaction(emoji, evt) {
+  try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) {}
   if (evt) {
     if (evt.cancelable && evt.type === 'touchstart') {
       evt.preventDefault();
@@ -932,6 +986,7 @@ socket.on('songVetoed', (info) => {
 });
 
 function remoteControl(action) {
+  try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
   if (lastYou && !lastYou.canControl) {
     return showToast('🔒 O anfitrião deixou os controles só com ele.');
   }
@@ -1204,6 +1259,7 @@ async function executeSearch(query) {
 }
 
 function addSongByIndex(idx, btnEl) {
+  try { if (navigator.vibrate) navigator.vibrate(22); } catch (e) {}
   const song = currentSearchResults[idx];
   if (!song) return;
 
@@ -1229,6 +1285,7 @@ function addSongByIndex(idx, btnEl) {
         btnEl.classList.remove('in-queue');
       }
     } else {
+      try { if (navigator.vibrate) navigator.vibrate([25, 45, 25]); } catch (e) {}
       showToast(dedication ? '💌 Música com dedicatória na fila!' : '🎵 Música adicionada! Já vai tocar no Telão!');
       if (dedicationInput) dedicationInput.value = '';
       if (btnEl) {

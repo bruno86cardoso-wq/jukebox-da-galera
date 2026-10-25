@@ -1003,6 +1003,8 @@ button {
 
 /* MINI PLAYER FIXO ABAIXO DAS ABAS (COM VOLTAR, PLAY/PAUSE E PULAR) */
 .top-mini-player-bar {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1010,9 +1012,61 @@ button {
   background: linear-gradient(135deg, rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.95));
   border: 1px solid rgba(139, 92, 246, 0.45);
   border-radius: 14px;
-  padding: 8px 12px;
+  padding: 8px 12px 11px;
   margin-bottom: 14px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+.mini-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  transition: width 0.3s ease;
+}
+
+.btn-whatsapp {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: #25d366;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  margin: 10px 0 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-whatsapp:active {
+  transform: scale(0.97);
+  background: #1ebd5a;
+}
+
+@keyframes queueBumpAnim {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.15); background: rgba(16, 185, 129, 0.35); color: #34d399; }
+  100% { transform: scale(1); }
+}
+
+.tab-btn.queue-bump {
+  animation: queueBumpAnim 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .mini-player-info {
