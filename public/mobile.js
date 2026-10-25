@@ -401,6 +401,33 @@ function syncJblPlayer(song) {
   }
 }
 
+let jblPreloadMediaEl = null;
+function preloadNextSongAudio(videoId, isVideo) {
+  if (!videoId || typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+  if (!jblPreloadMediaEl) {
+    jblPreloadMediaEl = document.createElement(isVideo ? 'video' : 'audio');
+    jblPreloadMediaEl.preload = 'auto';
+    jblPreloadMediaEl.muted = true;
+    jblPreloadMediaEl.style.display = 'none';
+    if (document.body && typeof document.body.appendChild === 'function') {
+      document.body.appendChild(jblPreloadMediaEl);
+    }
+  }
+  const targetSrc = (isVideo ? '/api/stream/' : '/api/audio/') + videoId;
+  if (!jblPreloadMediaEl.src || !jblPreloadMediaEl.src.endsWith(targetSrc)) {
+    jblPreloadMediaEl.src = targetSrc;
+    jblPreloadMediaEl.load();
+  }
+}
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && jblModeActive && navigator.wakeLock) {
+      navigator.wakeLock.request('screen').catch(() => {});
+    }
+  });
+}
+
 async function openQrModal() {
   if (!socket.party.code) return;
   document.getElementById('qrModal').style.display = 'flex';
@@ -617,6 +644,7 @@ socket.on('stateUpdate', (state, you) => {
       ? `/api/stream/${nextSong.videoId}`
       : `/api/audio/${nextSong.videoId}`;
     fetch(endpoint, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
+    preloadNextSongAudio(nextSong.videoId, jblMediaMode === 'video');
   }
 
   document.getElementById('desafioStatsBox').style.display = isDesafio ? 'flex' : 'none';
@@ -654,8 +682,14 @@ socket.on('stateUpdate', (state, you) => {
       nowMystery.textContent = `🎧 Pedida por: ${s.addedBy.name}`;
     }
 
+    const remainingToVeto = s.dislikeThreshold - s.dislikesEffective;
+    const isVetoDanger = isDesafio && remainingToVeto === 1 && s.dislikeThreshold > 1;
+    const vetoThreatNotice = isVetoDanger
+      ? `<div class="veto-danger-pill">⚠️ PERIGO: Falta apenas 1 Dislike para derrubar essa música! 💣💥</div>`
+      : '';
+
     const subStatus = isDesafio
-      ? `<div style="font-size:12px; margin-top:4px; color:#38bdf8; font-weight:700;">👍 ${s.likesCount} Likes • 👎 ${s.dislikesEffective}/${s.dislikeThreshold} p/ Pular</div>`
+      ? `<div style="font-size:12px; margin-top:4px; color:#38bdf8; font-weight:700;">👍 ${s.likesCount} Likes • 👎 ${s.dislikesEffective}/${s.dislikeThreshold} p/ Pular</div>${vetoThreatNotice}`
       : `<div style="font-size:12px; margin-top:4px; color:#34d399; font-weight:700;">🟢 Modo Livre · sem votação</div>`;
 
     nowContent.innerHTML = `
@@ -782,6 +816,13 @@ socket.on('liveReaction', ({ emoji }) => {
       if (el.parentNode) el.remove();
     }, 2500);
   }
+});
+
+socket.on('songVetoed', (info) => {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate([160, 80, 160]); } catch (e) {}
+  }
+  showToast(`💣 MÚSICA DERRUBADA! A galera vetou "${info?.title || 'a música'}"!`);
 });
 
 function remoteControl(action) {

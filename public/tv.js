@@ -293,22 +293,52 @@ function syncVideoPlayer(song) {
   }
 }
 
+let tvPreloadMediaEl = null;
+function preloadNextTvTrack(videoId, isVideo) {
+  if (!videoId || typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+  if (!tvPreloadMediaEl) {
+    tvPreloadMediaEl = document.createElement(isVideo ? 'video' : 'audio');
+    tvPreloadMediaEl.preload = 'auto';
+    tvPreloadMediaEl.muted = true;
+    tvPreloadMediaEl.style.display = 'none';
+    if (document.body && typeof document.body.appendChild === 'function') {
+      document.body.appendChild(tvPreloadMediaEl);
+    }
+  }
+  const targetSrc = (isVideo ? '/api/stream/' : '/api/audio/') + videoId;
+  if (!tvPreloadMediaEl.src || !tvPreloadMediaEl.src.endsWith(targetSrc)) {
+    tvPreloadMediaEl.src = targetSrc;
+    tvPreloadMediaEl.load();
+  }
+}
+
 function playSoundEffect(type) {
   if (!audioUnlocked) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (type === 'veto') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(220, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.6);
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.65);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.65);
+      const playBuzzerTone = (startOffset, duration) => {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        osc1.frequency.setValueAtTime(160, ctx.currentTime + startOffset);
+        osc2.frequency.setValueAtTime(168, ctx.currentTime + startOffset);
+        osc1.frequency.linearRampToValueAtTime(100, ctx.currentTime + startOffset + duration);
+        osc2.frequency.linearRampToValueAtTime(104, ctx.currentTime + startOffset + duration);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + startOffset);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startOffset + duration);
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start(ctx.currentTime + startOffset);
+        osc2.start(ctx.currentTime + startOffset);
+        osc1.stop(ctx.currentTime + startOffset + duration);
+        osc2.stop(ctx.currentTime + startOffset + duration);
+      };
+      playBuzzerTone(0, 0.28);
+      playBuzzerTone(0.32, 0.45);
     } else if (type === 'reveal') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -459,6 +489,12 @@ socket.on('stateUpdate', (state, you) => {
   // Player e Música Atual
   syncVideoPlayer(state.currentSong);
 
+  // Pré-carrega a próxima faixa no navegador para transição instantânea sem silêncio
+  if (state.queue && state.queue.length > 0 && isPrimaryTv) {
+    const nextSong = state.queue[0];
+    preloadNextTvTrack(nextSong.videoId, tvMediaMode === 'video');
+  }
+
   const nowTitle = document.getElementById('nowTitle');
   const nowArtist = document.getElementById('nowArtist');
   const badge = document.getElementById('requesterBadge');
@@ -472,7 +508,11 @@ socket.on('stateUpdate', (state, you) => {
     nowTitle.textContent = 'Aguardando pedidos da galera...';
     nowArtist.textContent = 'Aponte a câmera para o QR Code e escolha uma música!';
     badge.className = 'requester-badge revealed';
-    badge.innerHTML = '<span>🎧 DJ da Vez: —</span>';
+    if (state.log && state.log.length > 0) {
+      badge.innerHTML = '<button type="button" class="btn-summary-tv" onclick="requestSummary()">🏆 Ver Resumo da Noite</button>';
+    } else {
+      badge.innerHTML = '<span>🎧 DJ da Vez: —</span>';
+    }
     likesEl.textContent = '0';
     dislikesEl.textContent = `0 / ${state.dislikeThreshold}`;
     vetoFill.style.width = '0%';

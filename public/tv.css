@@ -1146,6 +1146,34 @@ body.reaction-burst .main-grid { animation: shake 0.5s ease 2; }
 }
 .btn-action.danger { border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
 
+.btn-summary-tv {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.5), rgba(79, 70, 229, 0.65));
+  border: 1px solid rgba(168, 85, 247, 0.7);
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.4);
+  animation: pulseSummaryBtn 2.2s infinite;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-summary-tv:hover {
+  transform: scale(1.06);
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.7), rgba(79, 70, 229, 0.85));
+}
+
+@keyframes pulseSummaryBtn {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(168, 85, 247, 0.35); }
+  50% { transform: scale(1.04); box-shadow: 0 0 24px rgba(168, 85, 247, 0.7); }
+}
+
 /* Resumo da festa */
 .summary-overlay {
   position: fixed;
