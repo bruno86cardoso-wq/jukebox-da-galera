@@ -144,6 +144,15 @@ body {
   gap: 12px;
 }
 
+.brand-logo-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4), 0 0 12px rgba(245, 158, 11, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .brand-icon {
   width: 40px;
   height: 40px;

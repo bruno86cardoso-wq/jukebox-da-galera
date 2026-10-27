@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#090b14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
   <title>Jukebox da Galera • YouTube Music</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +21,9 @@
   <!-- TELA DE ENTRADA (APELIDO) -->
   <div id="loginScreen" class="login-screen">
     <div class="login-card">
-      <div style="font-size: 48px;">🎧🔥</div>
+      <div class="login-logo-wrap">
+        <img src="/icon-192.png" alt="Jukebox da Galera" class="login-app-logo" />
+      </div>
       <h1>Jukebox da Galera</h1>
       <p id="loginHint">Digite o código da festa e seu apelido para pedir músicas!</p>
       <label class="login-label" for="partyCodeInput">Código da festa</label>
