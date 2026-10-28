@@ -59,43 +59,10 @@
   </div>
 
   <main class="container">
-    <!-- BARRA RÁPIDA DO TOPO: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
-    <div class="top-actions-row">
-      <button type="button" class="btn-top-action invite" onclick="openQrModal()">
-        <span>📲</span> Convidar Galera
-      </button>
-      <button type="button" id="btnToggleJbl" class="btn-top-action sound" onclick="toggleJblMode()">
-        <span id="btnToggleJblText">🔊 Assumir Som da Caixa</span>
-      </button>
-    </div>
-
     <!-- ELEMENTOS DE CONTROLE INTERNOS (MANTIDOS OCULTOS PARA COMPATIBILIDADE) -->
     <div style="display:none;" aria-hidden="true">
       <button id="btnMediaAudio" onclick="setJblMediaMode('audio')"></button>
       <button id="btnMediaVideo" onclick="setJblMediaMode('video')"></button>
-    </div>
-
-    <!-- SELETOR DOS DOIS MODOS NO APP -->
-    <!-- PAINEL DO ANFITRIÃO -->
-    <section class="host-card host-only">
-      <div class="host-card-title">👑 Você é o anfitrião</div>
-      <label class="switch-row">
-        <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
-        <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
-      </label>
-      <div class="host-buttons-row">
-        <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
-        <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>
-      </div>
-    </section>
-
-    <div class="mode-switcher-card host-only">
-      <button id="mobBtnLivre" class="mob-mode-btn livre active" onclick="changeAppMode('livre')">
-        🟢 Modo Livre
-      </button>
-      <button id="mobBtnDesafio" class="mob-mode-btn desafio" onclick="changeAppMode('desafio')">
-        🔥 Modo Desafio
-      </button>
     </div>
 
     <!-- NAVEGAÇÃO POR ABAS ESTILO SPOTIFY / YOUTUBE MUSIC -->
@@ -134,6 +101,26 @@
 
     <!-- ABA 1: PLAYER DEDICADO COMPLETO -->
     <section id="tabPlayer" style="display: none;">
+      <!-- BARRA RÁPIDA: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
+      <div class="top-actions-row">
+        <button type="button" class="btn-top-action invite" onclick="openQrModal()">
+          <span>📲</span> Convidar Galera
+        </button>
+        <button type="button" id="btnToggleJbl" class="btn-top-action sound" onclick="toggleJblMode()">
+          <span id="btnToggleJblText">🔊 Assumir Som da Caixa</span>
+        </button>
+      </div>
+
+      <!-- SELETOR DOS DOIS MODOS NO APP -->
+      <div class="mode-switcher-card host-only">
+        <button id="mobBtnLivre" class="mob-mode-btn livre active" onclick="changeAppMode('livre')">
+          🟢 Modo Livre
+        </button>
+        <button id="mobBtnDesafio" class="mob-mode-btn desafio" onclick="changeAppMode('desafio')">
+          🔥 Modo Desafio
+        </button>
+      </div>
+
       <section class="now-card">
         <div id="themeBanner" class="theme-banner" hidden></div>
         <div class="now-badge-row">
@@ -253,6 +240,19 @@
           </button>
         </div>
       </section>
+
+      <!-- PAINEL DO ANFITRIÃO -->
+      <section class="host-card host-only">
+        <div class="host-card-title">👑 Você é o anfitrião</div>
+        <label class="switch-row">
+          <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
+          <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
+        </label>
+        <div class="host-buttons-row">
+          <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
+          <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>
+        </div>
+      </section>
     </section>
 
     <!-- ABA 2: BUSCA DEDICADA YOUTUBE MUSIC (BARRA NO TOPO) -->
@@ -264,7 +264,7 @@
 
       <form class="search-bar" onsubmit="handleSearch(event)">
         <div class="search-input-wrap">
-          <input id="searchInput" class="input-text" type="text" placeholder="Buscar música ou artista..." oninput="onSearchInput(this.value)" autocomplete="off" />
+          <input id="searchInput" class="input-text" type="search" name="music_search_query" placeholder="Buscar música ou artista..." oninput="onSearchInput(this.value)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" data-lpignore="true" data-form-type="other" />
           <button id="btnClearSearch" type="button" class="btn-clear-search" onclick="clearSearchInput()" aria-label="Limpar busca">✕</button>
           <div id="searchSuggestionsBox" class="search-suggestions" style="display: none;"></div>
         </div>
@@ -272,7 +272,7 @@
       </form>
 
       <div class="dedication-row">
-        <input id="dedicationInput" class="input-text" type="text" maxlength="60" placeholder="💌 Dedicar a próxima música (opcional) — ex: pra Mo 💘" />
+        <input id="dedicationInput" class="input-text" type="text" name="music_dedication" maxlength="60" placeholder="💌 Dedicar a próxima música (opcional) — ex: pra Mo 💘" autocomplete="off" data-lpignore="true" data-form-type="other" />
       </div>
 
       <div id="searchResults" class="results-list">
