@@ -517,6 +517,83 @@ button {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
 }
 
+/* Fallback do Player Oficial do YouTube */
+.mob-yt-fallback-box {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 6px 0 10px;
+  background: #000;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+#mobYtPlayerWrap {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* Proporção 16:9 */
+}
+
+#mobYtPlayerWrap iframe,
+#mobYtPlayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Trava de Tela Sempre Ativa (Wake Lock) */
+.wake-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px auto 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  width: fit-content;
+}
+
+.wake-lock-pill:active {
+  transform: scale(0.96);
+}
+
+.wake-lock-pill.disabled {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+}
+
+.wake-lock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: wakePulse 2s infinite ease-in-out;
+}
+
+.wake-lock-pill.disabled .wake-lock-dot {
+  background: #64748b;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes wakePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
 /* Timeline Customizada */
 .custom-timeline-box {
   display: flex;

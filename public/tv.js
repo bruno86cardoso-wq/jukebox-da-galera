@@ -178,7 +178,93 @@ const tvRecovery = attachMediaRecovery(videoEl, {
   failed: showTvPlaybackError
 });
 
+let tvYtPlayer = null;
+let tvYtFallbackActive = false;
+
+function loadTvYtApi() {
+  if (typeof document === 'undefined' || !document.createElement) return;
+  if (typeof window !== 'undefined' && window.YT && window.YT.Player) return;
+  if (typeof window !== 'undefined' && window._ytTvApiLoading) return;
+  if (typeof window !== 'undefined') window._ytTvApiLoading = true;
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  const first = document.getElementsByTagName('script')[0];
+  if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
+  else if (document.head) document.head.appendChild(tag);
+}
+
+function activateTvYtFallback(song) {
+  if (!song || !isPrimaryTv) return;
+  tvYtFallbackActive = true;
+  loadingOverlay.style.display = 'none';
+  audioCoverStage.style.display = 'none';
+  try {
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+  } catch (e) {}
+
+  const box = document.getElementById('tvYtFallbackBox');
+  if (box) box.style.display = 'block';
+
+  currentPlayingSongId = song.id;
+  currentVideoId = song.videoId;
+
+  if (tvYtPlayer && typeof tvYtPlayer.loadVideoById === 'function') {
+    try {
+      tvYtPlayer.loadVideoById(song.videoId);
+    } catch (e) {}
+    return;
+  }
+
+  if (typeof window === 'undefined' || !window.YT || !window.YT.Player) {
+    loadTvYtApi();
+    return;
+  }
+
+  const container = document.getElementById('tvYtPlayer');
+  if (!container) return;
+
+  try {
+    tvYtPlayer = new window.YT.Player('tvYtPlayer', {
+      height: '100%',
+      width: '100%',
+      videoId: song.videoId,
+      playerVars: {
+        autoplay: 1,
+        controls: 1,
+        playsinline: 1,
+        rel: 0,
+        modestbranding: 1
+      },
+      events: {
+        onReady: (e) => {
+          if (!lastState?.isPaused) {
+            try { e.target.playVideo(); } catch (err) {}
+          }
+        },
+        onStateChange: (e) => {
+          if (typeof window === 'undefined' || !window.YT) return;
+          if (e.data === window.YT.PlayerState.ENDED) {
+            if (isPrimaryTv && currentPlayingSongId) {
+              socket.emit('hostAction', {
+                action: 'songEnded',
+                payload: { songId: currentPlayingSongId }
+              });
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('Falha ao iniciar player YouTube no telão:', e);
+  }
+}
+
 function showTvPlaybackError() {
+  if (lastState?.currentSong) {
+    activateTvYtFallback(lastState.currentSong);
+    return;
+  }
   loadingOverlay.style.display = 'flex';
   document.getElementById('loadingSongText').textContent = 'Não foi possível tocar esta música';
   document.getElementById('tvPlaybackStatus').textContent = 'Tente novamente ou use Próxima para continuar.';
@@ -246,6 +332,12 @@ function syncVideoPlayer(song) {
     audioCoverStage.style.display = 'none';
     loadingOverlay.style.display = 'none';
     unmuteOverlay.style.display = 'none';
+    const ytBox = document.getElementById('tvYtFallbackBox');
+    if (ytBox) ytBox.style.display = 'none';
+    if (tvYtPlayer && typeof tvYtPlayer.stopVideo === 'function') {
+      try { tvYtPlayer.stopVideo(); } catch (err) {}
+    }
+    tvYtFallbackActive = false;
     tvRecovery.reset();
     currentPlayingSongId = null;
     currentVideoId = null;
@@ -253,6 +345,13 @@ function syncVideoPlayer(song) {
     videoEl.pause();
     videoEl.removeAttribute('src');
     videoEl.load();
+    return;
+  }
+
+  if (tvYtFallbackActive) {
+    if (song.id !== currentPlayingSongId || song.videoId !== currentVideoId) {
+      activateTvYtFallback(song);
+    }
     return;
   }
 
