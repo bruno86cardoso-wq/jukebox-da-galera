@@ -180,21 +180,33 @@ const tvRecovery = attachMediaRecovery(videoEl, {
 
 let tvYtPlayer = null;
 let tvYtFallbackActive = false;
+let pendingTvYtSong = null;
 
 function loadTvYtApi() {
-  if (typeof document === 'undefined' || !document.createElement) return;
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
   if (typeof window !== 'undefined' && window.YT && window.YT.Player) return;
   if (typeof window !== 'undefined' && window._ytTvApiLoading) return;
   if (typeof window !== 'undefined') window._ytTvApiLoading = true;
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
-  const first = document.getElementsByTagName('script')[0];
+  const first = typeof document.getElementsByTagName === 'function' ? document.getElementsByTagName('script')[0] : null;
   if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
-  else if (document.head) document.head.appendChild(tag);
+  else if (document.head && typeof document.head.appendChild === 'function') document.head.appendChild(tag);
+  else if (document.body && typeof document.body.appendChild === 'function') document.body.appendChild(tag);
+}
+
+if (typeof window !== 'undefined') {
+  window.onYouTubeIframeAPIReady = function() {
+    if (tvYtFallbackActive && pendingTvYtSong) {
+      activateTvYtFallback(pendingTvYtSong);
+    }
+  };
+  loadTvYtApi();
 }
 
 function activateTvYtFallback(song) {
   if (!song || !isPrimaryTv) return;
+  pendingTvYtSong = song;
   tvYtFallbackActive = true;
   loadingOverlay.style.display = 'none';
   audioCoverStage.style.display = 'none';
