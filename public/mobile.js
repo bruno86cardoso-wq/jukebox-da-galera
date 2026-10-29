@@ -321,12 +321,30 @@ async function toggleJblMode(forcedState) {
 }
 
 function setJblMediaMode(mode) {
-  const next = mode === 'video' ? 'video' : 'audio';
-  if (next === jblMediaMode) return;
+  const next = ['youtube', 'video', 'audio'].includes(mode) ? mode : 'audio';
+  if (next === jblMediaMode && !(next === 'youtube' && !ytFallbackActive)) return;
   jblMediaMode = next;
   localStorage.setItem('jukebox_media_mode', next);
+  if (next === 'youtube') {
+    ytFallbackActive = true;
+    if (jblVideoEl) {
+      try {
+        jblVideoEl.pause();
+        jblVideoEl.removeAttribute('src');
+        jblVideoEl.load();
+      } catch (e) {}
+    }
+    if (jblModeActive && latestState?.currentSong) activateYtFallback(latestState.currentSong);
+  } else {
+    ytFallbackActive = false;
+    const ytBox = document.getElementById('mobYtFallbackBox');
+    if (ytBox) ytBox.style.display = 'none';
+    if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
+      try { mobYtPlayer.stopVideo(); } catch (e) {}
+    }
+    if (jblModeActive && latestState?.currentSong) syncJblPlayer(latestState.currentSong);
+  }
   updateJblUi();
-  if (jblModeActive && latestState?.currentSong) syncJblPlayer(latestState.currentSong);
 }
 
 function updateJblUi() {
@@ -347,16 +365,17 @@ function updateJblUi() {
   }
   const statusText = document.getElementById('jblModeStatusText');
   if (statusText) {
-    statusText.textContent = '🎵 Som no Celular / JBL';
+    statusText.textContent = (jblMediaMode === 'youtube' || ytFallbackActive) ? '▶️ YouTube Direto (Nuvem)' : '🎵 Som no Celular / JBL';
   }
-  if (jblAudioEl) jblAudioEl.style.display = jblMediaMode === 'audio' ? 'block' : 'none';
-  if (jblClipEl) jblClipEl.style.display = jblMediaMode === 'video' ? 'block' : 'none';
+  const isYt = jblMediaMode === 'youtube' || ytFallbackActive;
+  if (jblAudioEl) jblAudioEl.style.display = (jblMediaMode === 'audio' && !isYt) ? 'block' : 'none';
+  if (jblClipEl) jblClipEl.style.display = (jblMediaMode === 'video' && !isYt) ? 'block' : 'none';
   const pillAudio = document.getElementById('btnPillAudio');
   const pillVideo = document.getElementById('btnPillVideo');
-  if (pillAudio && pillVideo) {
-    pillAudio.classList.toggle('active', jblMediaMode === 'audio');
-    pillVideo.classList.toggle('active', jblMediaMode === 'video');
-  }
+  const pillYt = document.getElementById('btnPillYt');
+  if (pillAudio) pillAudio.classList.toggle('active', jblMediaMode === 'audio' && !isYt);
+  if (pillVideo) pillVideo.classList.toggle('active', jblMediaMode === 'video' && !isYt);
+  if (pillYt) pillYt.classList.toggle('active', isYt);
   for (const mode of ['audio', 'video']) {
     const button = document.getElementById(mode === 'audio' ? 'btnMediaAudio' : 'btnMediaVideo');
     if (button) {
@@ -698,7 +717,6 @@ function syncJblPlayer(song) {
     const ytBox = document.getElementById('mobYtFallbackBox');
     if (ytBox) ytBox.style.display = 'none';
     clearInterval(ytProgressTimer);
-    ytFallbackActive = false;
     jblVideoEl.pause();
     jblVideoEl.removeAttribute('src');
     jblVideoEl.load();
@@ -708,7 +726,8 @@ function syncJblPlayer(song) {
   box.style.display = 'block';
   updateJblUi();
 
-  if (ytFallbackActive) {
+  if (ytFallbackActive || jblMediaMode === 'youtube') {
+    ytFallbackActive = true;
     if (song.id !== jblCurrentSongId || song.videoId !== jblCurrentVideoId) {
       activateYtFallback(song);
     }
