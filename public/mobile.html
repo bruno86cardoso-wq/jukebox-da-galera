@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#090b14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
@@ -17,6 +18,25 @@
   <link rel="stylesheet" href="/mobile.css" />
 </head>
 <body>
+
+  <!-- TELA DE SPLASH / CARREGAMENTO INSTANTÂNEO (PWA) -->
+  <div id="appSplashScreen" class="app-splash-screen" aria-label="Carregando Jukebox da Galera">
+    <div class="splash-content">
+      <div class="splash-logo-wrap">
+        <img src="/icon-192.png" alt="Jukebox da Galera" class="splash-logo" />
+      </div>
+      <h1 class="splash-title">Jukebox da Galera</h1>
+      <div class="splash-eq-bars" aria-hidden="true">
+        <span class="splash-bar"></span>
+        <span class="splash-bar"></span>
+        <span class="splash-bar"></span>
+        <span class="splash-bar"></span>
+        <span class="splash-bar"></span>
+      </div>
+      <p id="splashMsg" class="splash-msg">🎧 Conectando à Jukebox da Galera...</p>
+      <small id="splashSub" class="splash-sub">Aguarde alguns instantes</small>
+    </div>
+  </div>
 
   <!-- TELA DE ENTRADA (APELIDO) -->
   <div id="loginScreen" class="login-screen">
@@ -342,5 +362,12 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/common.js"></script>
   <script src="/mobile.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

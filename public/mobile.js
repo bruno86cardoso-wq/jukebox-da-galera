@@ -1,4 +1,46 @@
 const socket = createPartySocket();
+
+// ==========================================
+// TELA DE SPLASH / CARREGAMENTO INSTANTÂNEO (PWA)
+// ==========================================
+function hideSplashScreen() {
+  const splash = document.getElementById('appSplashScreen');
+  if (!splash || splash.dataset.hidden === '1') return;
+  splash.dataset.hidden = '1';
+  if (splash.classList?.add) splash.classList.add('splash-hidden');
+  setTimeout(() => {
+    if (splash.dataset.hidden === '1') {
+      splash.style.display = 'none';
+    }
+  }, 500);
+}
+
+function initSplashScreen() {
+  const splash = document.getElementById('appSplashScreen');
+  if (!splash) return;
+  setTimeout(() => {
+    if (splash.dataset.hidden !== '1') {
+      const msg = document.getElementById('splashMsg');
+      const sub = document.getElementById('splashSub');
+      if (msg) msg.textContent = '☁️ Conectando ao servidor na nuvem...';
+      if (sub) sub.textContent = 'Se o servidor estiver acordando, leva só alguns segundos!';
+    }
+  }, 3500);
+
+  setTimeout(() => {
+    if (splash.dataset.hidden !== '1') {
+      const msg = document.getElementById('splashMsg');
+      const sub = document.getElementById('splashSub');
+      if (msg) msg.textContent = '🚀 Quase pronto! Preparando sua festa...';
+      if (sub) sub.textContent = 'Carregando catálogo e músicas...';
+    }
+  }, 12000);
+
+  // Trava de segurança: garante exibição da interface mesmo com lentidão extrema
+  setTimeout(hideSplashScreen, 25000);
+}
+initSplashScreen();
+
 let myPlayerId = localStorage.getItem('jukebox_player_id');
 let myPlayerName = localStorage.getItem('jukebox_player_name') || '';
 let latestState = null;
@@ -827,6 +869,7 @@ function readLoginName() {
 }
 
 function showLogin(message) {
+  hideSplashScreen();
   document.getElementById('loginScreen').style.display = 'flex';
   if (message) {
     document.getElementById('loginHint').textContent = message;
@@ -861,6 +904,7 @@ async function finishEntry(code, name) {
   myPlayerId = res.player.id;
   localStorage.setItem('jukebox_player_id', myPlayerId);
   document.getElementById('loginScreen').style.display = 'none';
+  hideSplashScreen();
   updateMyHeader(res.player);
   return true;
 }
@@ -910,8 +954,15 @@ socket.on('disconnect', () => {
 socket.on('connect', async () => {
   // Entra sozinho na última festa (ou na do QR) se já tiver apelido salvo.
   const code = socket.party.code || partyCode;
-  if (!myPlayerName || !code) return;
-  if (!await enterParty(code, myPlayerName, true)) return;
+  if (!myPlayerName || !code) {
+    hideSplashScreen();
+    return;
+  }
+  if (!await enterParty(code, myPlayerName, true)) {
+    hideSplashScreen();
+    return;
+  }
+  hideSplashScreen();
   if (reclaimJbl) {
     reclaimJbl = false;
     jblModeActive = await socket.claimPlayback();
@@ -952,6 +1003,7 @@ const mysteryClock = createMysteryClock(seconds => {
 });
 
 socket.on('stateUpdate', (state, you) => {
+  hideSplashScreen();
   latestState = state;
   lastYou = you || null;
   const isDesafio = state.mode === 'desafio';
