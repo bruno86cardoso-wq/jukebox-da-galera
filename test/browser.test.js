@@ -75,6 +75,41 @@ test('celular interrompe e descarrega a mídia ao perder o controle do player', 
   assert.equal(video.src, '');
 });
 
+function spySocket(b) {
+  const sock = vm.runInContext('socket', b.context);
+  const sent = [];
+  sock.connected = true;
+  sock.emit = (event, data) => { sent.push({ event, data }); };
+  return { sock, sent };
+}
+
+test('queda de conexão não para a música e o fim dela é avisado ao reconectar', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  const audio = b.elements.get('mobJblAudio');
+  const { sock, sent } = spySocket(b);
+  sock.connected = false;
+  b.handlers.get('disconnect')();
+  assert.equal(audio.paused, false);
+  assert.ok(audio.src.includes('/api/audio/'));
+  audio.dispatch('ended');
+  assert.equal(sent.length, 0);
+  assert.equal(vm.runInContext('pendingEndedSongId', b.context), 'song');
+  sock.connected = true;
+  vm.runInContext('reportSongEnded(pendingEndedSongId)', b.context);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songEnded', payload: { songId: 'song' } } });
+});
+
+test('erro do player do YouTube pula para a próxima música', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  const { sent } = spySocket(b);
+  vm.runInContext('onMobYtError({ data: 150 })', b.context);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songEnded', payload: { songId: 'song' } } });
+});
+
 test('celular toca só áudio e ignora pedido de clipe', async () => {
   const b = browser('mobile');
   b.handlers.get('stateUpdate')(state());

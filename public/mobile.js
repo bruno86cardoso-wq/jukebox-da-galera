@@ -237,24 +237,32 @@ for (const element of [jblAudioEl]) {
 
   element.addEventListener('ended', () => {
     if (element === jblVideoEl && jblModeActive && jblCurrentSongId && !ytFallbackActive) {
-      socket.emit('hostAction', {
-        action: 'songEnded',
-        payload: { songId: jblCurrentSongId }
-      });
+      reportSongEnded(jblCurrentSongId);
     }
   });
 
   element.addEventListener('pause', () => {
-    if (element === jblVideoEl && jblModeActive && jblCurrentVideoId && !jblVideoEl.ended && !ytFallbackActive) {
+    if (element === jblVideoEl && jblModeActive && jblCurrentVideoId && !jblVideoEl.ended && !ytFallbackActive && socket.connected) {
       socket.emit('hostAction', { action: 'syncPauseState', payload: { paused: true } });
     }
   });
 
   element.addEventListener('play', () => {
-    if (element === jblVideoEl && jblModeActive && jblCurrentVideoId && !ytFallbackActive) {
+    if (element === jblVideoEl && jblModeActive && jblCurrentVideoId && !ytFallbackActive && socket.connected) {
       socket.emit('hostAction', { action: 'syncPauseState', payload: { paused: false } });
     }
   });
+}
+
+// Sem conexão, guarda o fim da música e avisa o servidor quando reconectar.
+let pendingEndedSongId = null;
+function reportSongEnded(songId) {
+  if (!songId) return;
+  if (!socket.connected) {
+    pendingEndedSongId = songId;
+    return;
+  }
+  socket.emit('hostAction', { action: 'songEnded', payload: { songId } });
 }
 
 socket.on('tvDeactivated', () => {
@@ -595,14 +603,22 @@ function activateYtFallback(song) {
           }
         },
         onStateChange: onMobYtStateChange,
-        onError: (err) => {
-          console.warn('Erro no player do YouTube:', err);
-        }
+        onError: onMobYtError
       }
     });
   } catch (err) {
     console.warn('Falha ao instanciar YouTube Player:', err);
   }
+}
+
+// Vídeo indisponível ou bloqueado fora do YouTube (2, 5, 100, 101, 150, 153): pula para a próxima.
+function onMobYtError(e) {
+  console.warn('Erro no player do YouTube:', e && e.data);
+  clearInterval(ytProgressTimer);
+  if (!jblModeActive || !jblCurrentSongId) return;
+  updatePlaybackStatus('error');
+  showToast('⏭️ Essa música não pode tocar aqui. Pulando para a próxima...');
+  reportSongEnded(jblCurrentSongId);
 }
 
 function onMobYtStateChange(e) {
@@ -647,12 +663,7 @@ function onMobYtStateChange(e) {
     }
   } else if (state === window.YT.PlayerState.ENDED) {
     clearInterval(ytProgressTimer);
-    if (jblModeActive && jblCurrentSongId) {
-      socket.emit('hostAction', {
-        action: 'songEnded',
-        payload: { songId: jblCurrentSongId }
-      });
-    }
+    if (jblModeActive && jblCurrentSongId) reportSongEnded(jblCurrentSongId);
   }
 }
 
@@ -917,27 +928,45 @@ socket.onPartyLost = result => showLogin(result?.error || 'A festa não existe m
 
 let reclaimJbl = false;
 socket.on('disconnect', () => {
-  reclaimJbl = jblModeActive;
+  // A música continua tocando; ao reconectar, este aparelho reassume o som.
+  if (!jblModeActive) return;
+  reclaimJbl = true;
+  showToast('📶 Sem conexão. A música continua e sincroniza quando a internet voltar.');
+});
+
+function stopJblAfterLostConnection() {
+  pendingEndedSongId = null;
+  if (!jblModeActive) return;
   jblModeActive = false;
   syncJblPlayer(null);
   updateJblUi();
-});
+}
 socket.on('connect', async () => {
   // Entra sozinho na última festa (ou na do QR) se já tiver apelido salvo.
   const code = socket.party.code || partyCode;
   if (!myPlayerName || !code) {
     hideSplashScreen();
+    if (reclaimJbl) { reclaimJbl = false; stopJblAfterLostConnection(); }
     return;
   }
   if (!await enterParty(code, myPlayerName, true)) {
     hideSplashScreen();
+    if (reclaimJbl) { reclaimJbl = false; stopJblAfterLostConnection(); }
     return;
   }
   hideSplashScreen();
   if (reclaimJbl) {
     reclaimJbl = false;
-    jblModeActive = await socket.claimPlayback();
-    if (jblModeActive) syncJblPlayer(latestState?.currentSong);
+    if (!await socket.claimPlayback()) {
+      stopJblAfterLostConnection();
+      return;
+    }
+    if (pendingEndedSongId) {
+      const endedId = pendingEndedSongId;
+      pendingEndedSongId = null;
+      reportSongEnded(endedId);
+    }
+    syncJblPlayer(latestState?.currentSong);
     updateJblUi();
   }
 });

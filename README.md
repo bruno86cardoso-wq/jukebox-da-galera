@@ -33,7 +33,7 @@ Também dá para criar a festa direto no celular (**Criar uma festa neste celula
 - **Telão vivo:** o fundo acompanha a cor da capa da música, as reações mostram o nome de quem reagiu, e muitas reações juntas viram uma chuva de emojis.
 - **Mistério de verdade:** no Desafio, o servidor não envia quem pediu, nem pelo placar ou pelas conquistas, até os 30 segundos acabarem. A contagem roda no próprio aparelho, sem mensagens a cada segundo.
 
-Somente o aparelho ativo controla os eventos de reprodução. Ao transferir a reprodução, o anterior para; ao perder conexão, ele também interrompe o áudio. O navegador pode exigir um toque em **Continuar** para liberar som.
+Somente o aparelho ativo controla os eventos de reprodução. Ao transferir a reprodução, o anterior para. Se a internet cair, a música continua e o aparelho reassume o som sozinho quando a conexão voltar; se um vídeo não puder tocar, o app pula para a próxima. O navegador pode exigir um toque em **Continuar** para liberar som.
 
 No celular, escolha **Só áudio · mais leve** ou **Com vídeo** antes de tocar. Só áudio é o padrão: usa um reprodutor de áudio e solicita apenas a faixa de áudio; o clipe só é extraído e carregado quando escolhido. A escolha fica salva no navegador. **Modo Livre** e **Modo Desafio** controlam a votação, independentemente do formato de reprodução.
 
