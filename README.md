@@ -21,7 +21,7 @@ Também dá para criar a festa direto no celular (**Criar uma festa neste celula
 - O código da festa funciona como uma senha leve: sem ele ninguém entra, mas ele vai embutido no QR Code, então ninguém precisa digitar nada.
 - Quem cria a festa recebe uma chave de anfitrião, guardada só naquele navegador. Em **⚙️ Festa**, o telão mostra um QR do anfitrião para você controlar pelo seu celular. Não mostre esse QR para a galera.
 - **Galera pode pular e pausar** vem ligado. O anfitrião pode desligar: aí só ele pula, volta, pausa e assume o som. No Desafio, só o anfitrião pula ou volta; a galera derruba a música no voto. Modo, tema, número de pessoas e resumo são sempre só do anfitrião. Cada convidado pode remover os próprios pedidos.
-- **Rodízio:** a fila toca uma música de cada pessoa por vez. Quem pediu várias espera todo mundo tocar uma antes de voltar a vez dela.
+- **Rodízio:** no Modo Livre, cada pessoa toca até 2 músicas seguidas. No Desafio, toca uma de cada pessoa por vez: quem pediu várias espera todo mundo tocar uma antes de voltar a vez dela.
 - Ao reabrir `/tv`, o telão volta para a última festa que criou. **Começar uma festa nova** gera outro código.
 - Festas sem ninguém conectado são apagadas após 12 horas sem atividade.
 

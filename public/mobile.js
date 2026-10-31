@@ -1538,7 +1538,7 @@ function closeSearchResults() {
     resultsBox.innerHTML = `
       <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
         Digite o nome da música ou do artista e toque em <strong>Buscar</strong>!<br/>
-        <small>Você pode adicionar quantas quiser (a fila toca uma de cada pessoa por vez).</small>
+        <small>Você pode adicionar quantas quiser (no Livre, até 2 seguidas por pessoa; no Desafio, uma de cada pessoa por vez).</small>
       </div>
     `;
   }
