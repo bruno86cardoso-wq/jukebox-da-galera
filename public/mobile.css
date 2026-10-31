@@ -1969,3 +1969,26 @@ body:not(.can-control) .control-only { display: none !important; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Topo em celular: se não couber, munição e pontos descem para uma segunda linha
+   em vez de cortar o nome. */
+.user-header {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  column-gap: 8px;
+}
+.user-header .user-info {
+  flex: 1 1 auto;
+}
+.user-header .user-stats {
+  margin-left: auto;
+}
+#myName {
+  max-width: 45vw;
+}
+@media (max-width: 420px) {
+  .user-header .stat-pill {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}

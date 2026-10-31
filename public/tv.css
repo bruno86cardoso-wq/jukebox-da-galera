@@ -1250,3 +1250,12 @@ body.reaction-burst .main-grid { animation: shake 0.5s ease 2; }
   .dedication-banner { font-size: 16px; bottom: 50px; }
   .party-code-badge { margin-left: 0; }
 }
+
+/* Erro do YouTube: aviso calmo, para não parecer que a galera vetou. */
+.veto-overlay.fail-overlay {
+  background: rgba(30, 41, 59, 0.94);
+}
+.veto-overlay.fail-overlay h1 {
+  font-size: 52px;
+  color: #fbbf24;
+}

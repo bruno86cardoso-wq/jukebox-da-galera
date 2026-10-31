@@ -313,3 +313,21 @@ test('no Desafio só o anfitrião pula ou volta; a galera derruba no voto', asyn
   assert.equal((await host.call('hostAction', { action: 'skipSong' })).ok, true);
   assert.equal(f.jukebox.getPublicState(host.code).currentSong, null);
 });
+
+test('música com erro avisa a galera e segue para a próxima sem ninguém ter pulado', async t => {
+  const f = await fixture(t);
+  const host = await f.host();
+  const guest = await f.guest(host.code);
+  await host.call('registerPlayer', { name: 'Ana' });
+  await guest.call('registerPlayer', { name: 'Bia' });
+  await guest.call('addSong', { song: song('aaaaaaaaaaa') });
+  await guest.call('addSong', { song: song('bbbbbbbbbbb') });
+  const failed = once(guest.events, 'songFailed');
+  const id = f.jukebox.getPublicState(host.code).currentSong.id;
+  assert.equal((await guest.call('hostAction', { action: 'songFailed', payload: { songId: id } })).ok, false, 'só o aparelho do som avisa erro');
+  await host.call('registerTv', {});
+  assert.equal((await host.call('hostAction', { action: 'songFailed', payload: { songId: id } })).ok, true);
+  const [info] = await failed;
+  assert.equal(info.title, 'Música de teste');
+  assert.equal(f.jukebox.getPublicState(host.code).currentSong.videoId, 'bbbbbbbbbbb');
+});

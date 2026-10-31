@@ -267,6 +267,12 @@ function activateTvYtFallback(song) {
             try { e.target.playVideo(); } catch (err) {}
           }
         },
+        onError: (e) => {
+          console.warn('Erro no player do YouTube (telão):', e && e.data);
+          if (isPrimaryTv && currentPlayingSongId) {
+            socket.emit('hostAction', { action: 'songFailed', payload: { songId: currentPlayingSongId } });
+          }
+        },
         onStateChange: (e) => {
           if (typeof window === 'undefined' || !window.YT) return;
           if (e.data === window.YT.PlayerState.ENDED) {
@@ -745,6 +751,13 @@ socket.on('stateUpdate', (state, you) => {
 
 socket.on('mysteryRevealed', () => {
   playSoundEffect('reveal');
+});
+
+socket.on('songFailed', (info) => {
+  const overlay = document.getElementById('failOverlay');
+  document.getElementById('failOverlaySub').textContent = `"${info.title}" deu erro no YouTube. Ninguém pulou: seguimos para a próxima!`;
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 4200);
 });
 
 socket.on('songVetoed', (info) => {

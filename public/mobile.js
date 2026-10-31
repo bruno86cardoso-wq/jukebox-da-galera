@@ -623,8 +623,11 @@ function onMobYtError(e) {
   clearInterval(ytProgressTimer);
   if (!jblModeActive || !jblCurrentSongId) return;
   updatePlaybackStatus('error');
-  showToast('⏭️ Essa música não pode tocar aqui. Pulando para a próxima...');
-  reportSongEnded(jblCurrentSongId);
+  if (socket.connected) {
+    socket.emit('hostAction', { action: 'songFailed', payload: { songId: jblCurrentSongId } });
+  } else {
+    reportSongEnded(jblCurrentSongId);
+  }
 }
 
 function onMobYtStateChange(e) {
@@ -1412,6 +1415,14 @@ function sendReaction(emoji, evt) {
 
 socket.on('liveReaction', ({ emoji }) => {
   spawnLocalReaction(emoji);
+});
+
+socket.on('songFailed', (info) => {
+  const mine = Boolean(lastYou?.currentIsMine);
+  try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
+  showToast(mine
+    ? `⚠️ Sua música "${info?.title || ''}" deu erro no YouTube e não pôde tocar. Ninguém pulou! Tente pedir outra versão.`
+    : `⚠️ "${info?.title || 'A música'}" deu erro no YouTube e não pôde tocar. Ninguém pulou, seguimos para a próxima!`);
 });
 
 socket.on('songVetoed', (info) => {

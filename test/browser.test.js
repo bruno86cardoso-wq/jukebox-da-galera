@@ -119,13 +119,13 @@ test('queda de conexão não para a música e o fim dela é avisado ao reconecta
   assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songEnded', payload: { songId: 'song' } } });
 });
 
-test('erro do player do YouTube pula para a próxima música', async () => {
+test('erro do player do YouTube avisa a galera e pula para a próxima', async () => {
   const b = browser('mobile');
   b.handlers.get('stateUpdate')(state());
   await vm.runInContext('toggleJblMode()', b.context);
   const { sent } = spySocket(b);
   vm.runInContext('onMobYtError({ data: 150 })', b.context);
-  assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songEnded', payload: { songId: 'song' } } });
+  assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songFailed', payload: { songId: 'song' } } });
 });
 
 test('celular toca só áudio e ignora pedido de clipe', async () => {
