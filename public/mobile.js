@@ -1011,17 +1011,25 @@ function isMustVoteLocked() {
   const s = latestState.currentSong;
   const isMine = Boolean(lastYou?.currentIsMine);
   const alreadyVoted = (s.voterIds || []).includes(myPlayerId);
-  return !isMine && !alreadyVoted;
+  // Antes de a votação abrir (30s), os pedidos continuam liberados.
+  return Boolean(s.votingOpen) && !isMine && !alreadyVoted;
 }
 
 const mysteryClock = createMysteryClock(seconds => {
   const badge = document.getElementById('nowMysteryBadge');
   if (badge && badge.dataset.mystery === '1') badge.textContent = `🕵️ Mistério (${seconds}s)`;
-  updateMiniDesafioStatus(seconds);
+  updateMiniDesafioStatus();
+});
+
+// Contagem até a votação abrir (os primeiros 30s de cada música no Desafio).
+const voteClock = createMysteryClock(seconds => {
+  const title = document.getElementById('votePromptTitle');
+  if (title && title.dataset.waiting === '1') title.textContent = `⏳ Ouça um pouco! A votação abre em ${seconds}s`;
+  updateMiniDesafioStatus();
 });
 
 // No Desafio, o cartão do Início mostra o placar de votos e o tempo do mistério.
-function updateMiniDesafioStatus(mysterySeconds) {
+function updateMiniDesafioStatus() {
   const el = document.getElementById('miniPlayerStatus');
   if (!el) return;
   const s = latestState?.currentSong;
@@ -1029,8 +1037,12 @@ function updateMiniDesafioStatus(mysterySeconds) {
     el.hidden = true;
     return;
   }
-  const seconds = typeof mysterySeconds === 'number' ? mysterySeconds : mysteryClock.remaining();
-  const mystery = !s.isRevealed ? `🕵️ ${seconds}s · ` : '';
+  if (!s.votingOpen) {
+    el.textContent = `⏳ Votação abre em ${voteClock.remaining()}s`;
+    el.hidden = false;
+    return;
+  }
+  const mystery = !s.isRevealed ? `🕵️ ${mysteryClock.remaining()}s · ` : '';
   el.textContent = `${mystery}👍 ${s.likesCount || 0} · 👎 ${s.dislikesEffective || 0}/${s.dislikeThreshold || 1}`;
   el.hidden = false;
 }
@@ -1103,6 +1115,7 @@ socket.on('stateUpdate', (state, you) => {
       </div>
     `;
     voteArea.style.display = 'none';
+    voteClock.update(null);
     if (searchHint) searchHint.style.display = 'none';
   } else {
     if (searchHint) searchHint.style.display = 'flex';
@@ -1140,18 +1153,28 @@ socket.on('stateUpdate', (state, you) => {
     // Área de Votação aparece apenas no Modo Desafio!
     if (!isDesafio) {
       voteArea.style.display = 'none';
+      voteClock.update(null);
     } else {
       voteArea.style.display = 'block';
       const isMine = Boolean(lastYou?.currentIsMine);
       const alreadyVoted = (s.voterIds || []).includes(myPlayerId);
       const myAmmo = me ? me.ammo : 0;
 
+      promptTitle.dataset.waiting = '';
+      voteClock.update(s.votingOpen ? null : { id: s.id, isRevealed: false, mysteryRemainingSeconds: s.voteOpensInSeconds }, state.isPaused);
       if (isMine) {
         voteArea.classList.remove('mandatory');
         promptTitle.style.color = '#a78bfa';
         promptTitle.textContent = s.isRevealed
           ? '🎸 Essa música foi pedida por VOCÊ!'
-          : '🤫 Psiu! Essa música é SUA! Disfarce até os 30s acabarem!';
+          : '🤫 Psiu! Essa música é SUA! Disfarce até revelarem quem pediu!';
+        btnLike.disabled = true;
+        btnDislike.disabled = true;
+      } else if (!s.votingOpen) {
+        voteArea.classList.remove('mandatory');
+        promptTitle.style.color = '#38bdf8';
+        promptTitle.dataset.waiting = '1';
+        promptTitle.textContent = `⏳ Ouça um pouco! A votação abre em ${voteClock.remaining()}s`;
         btnLike.disabled = true;
         btnDislike.disabled = true;
       } else if (alreadyVoted) {
@@ -1515,7 +1538,7 @@ function closeSearchResults() {
     resultsBox.innerHTML = `
       <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
         Digite o nome da música ou do artista e toque em <strong>Buscar</strong>!<br/>
-        <small>Você pode adicionar quantas quiser (a fila organiza até 2 seguidas por pessoa).</small>
+        <small>Você pode adicionar quantas quiser (a fila toca uma de cada pessoa por vez).</small>
       </div>
     `;
   }

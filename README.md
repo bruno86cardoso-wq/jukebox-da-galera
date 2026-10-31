@@ -20,7 +20,8 @@ Também dá para criar a festa direto no celular (**Criar uma festa neste celula
 - Cada festa tem fila, votos, ranking e conquistas próprios. Várias festas podem rodar no mesmo servidor ao mesmo tempo sem se misturar.
 - O código da festa funciona como uma senha leve: sem ele ninguém entra, mas ele vai embutido no QR Code, então ninguém precisa digitar nada.
 - Quem cria a festa recebe uma chave de anfitrião, guardada só naquele navegador. Em **⚙️ Festa**, o telão mostra um QR do anfitrião para você controlar pelo seu celular. Não mostre esse QR para a galera.
-- **Galera pode pular e pausar** vem ligado. O anfitrião pode desligar: aí só ele pula, volta, pausa e assume o som. Modo, tema, número de pessoas e resumo são sempre só do anfitrião. Cada convidado pode remover os próprios pedidos.
+- **Galera pode pular e pausar** vem ligado. O anfitrião pode desligar: aí só ele pula, volta, pausa e assume o som. No Desafio, só o anfitrião pula ou volta; a galera derruba a música no voto. Modo, tema, número de pessoas e resumo são sempre só do anfitrião. Cada convidado pode remover os próprios pedidos.
+- **Rodízio:** a fila toca uma música de cada pessoa por vez. Quem pediu várias espera todo mundo tocar uma antes de voltar a vez dela.
 - Ao reabrir `/tv`, o telão volta para a última festa que criou. **Começar uma festa nova** gera outro código.
 - Festas sem ninguém conectado são apagadas após 12 horas sem atividade.
 
@@ -31,7 +32,7 @@ Também dá para criar a festa direto no celular (**Criar uma festa neste celula
 - **Conquistas:** Abriu a Pista, Maratonista, Hitmaker, Unanimidade, Sniper, Coração Mole, Ranzinza Oficial, Alvo de Tomate, Romântico, No Clima e Animador. Aparecem no telão, no celular de quem ganhou e no ranking.
 - **Resumo da festa:** hino da noite, DJ da festa, mais vetado, maior ranzinza, coração mole, dedicatórias, temas e conquistas. O anfitrião mostra no telão e em todos os celulares; qualquer um vê pelo botão 📊.
 - **Telão vivo:** o fundo acompanha a cor da capa da música, as reações mostram o nome de quem reagiu, e muitas reações juntas viram uma chuva de emojis.
-- **Mistério de verdade:** no Desafio, o servidor não envia quem pediu, nem pelo placar ou pelas conquistas, até os 30 segundos acabarem. A contagem roda no próprio aparelho, sem mensagens a cada segundo.
+- **Mistério de verdade:** no Desafio, o servidor não envia quem pediu, nem pelo placar ou pelas conquistas, até 1 minuto de música. A votação só abre depois de 30 segundos, para a galera ouvir antes de votar. A contagem roda no próprio aparelho, sem mensagens a cada segundo.
 
 Somente o aparelho ativo controla os eventos de reprodução. Ao transferir a reprodução, o anterior para. Se a internet cair, a música continua e o aparelho reassume o som sozinho quando a conexão voltar; se um vídeo não puder tocar, o app pula para a próxima. O navegador pode exigir um toque em **Continuar** para liberar som.
 

@@ -139,7 +139,7 @@ function createJukebox(options = {}) {
     entry.persistence = createPersistence(PARTIES_DIR ? path.join(PARTIES_DIR, `${code}.json`) : null,
       () => entry.party.serialize(), validSaved);
     entry.party = createParty({
-      code, hostKeyHash, saved, media,
+      code, hostKeyHash, saved, media, voteDelaySeconds: options.voteDelaySeconds,
       changed: () => broadcastState(entry),
       emit: (event, payload) => { if (!stopping) io.to(room(code)).emit(event, payload); },
       command: cmd => {
