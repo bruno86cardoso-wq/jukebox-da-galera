@@ -360,7 +360,7 @@ function updateJblUi() {
   const btnText = document.getElementById('btnToggleJblText');
   if (btn) {
     btn.classList.toggle('jbl-active', jblModeActive);
-    const label = jblModeActive ? '🔊 Tocando neste Aparelho' : '🔊 Assumir Som da Caixa';
+    const label = jblModeActive ? '🔊 Tocando aqui' : '🔊 Assumir som';
     if (btnText) {
       btnText.textContent = label;
     } else {
@@ -1026,6 +1026,9 @@ socket.on('stateUpdate', (state, you) => {
   const isDesafio = state.mode === 'desafio';
   if (document.body?.classList) {
     document.body.classList.toggle('is-host', Boolean(you?.isHost));
+    // O anfitrião acha os controles da festa nesta aba.
+    const rankTab = document.getElementById('tabBtnRank');
+    if (rankTab) rankTab.textContent = you?.isHost ? '👑 Festa' : '🏆 Galera';
     document.body.classList.toggle('can-control', you ? Boolean(you.canControl) : true);
   }
   const guestsInput = document.getElementById('guestsControlInput');
@@ -1239,6 +1242,9 @@ function parseDurationToSeconds(dur) {
 function updateTopMiniPlayerBar() {
   const bar = document.getElementById('topMiniPlayerBar');
   if (!bar) return;
+  // Emojis de reação só fazem sentido com música tocando.
+  const reactionsEl = document.getElementById('homeReactions');
+  if (reactionsEl) reactionsEl.style.display = latestState?.currentSong ? '' : 'none';
   const song = latestState?.currentSong;
   // No Início o cartão aparece sempre; nas outras abas, só com música tocando.
   if (!latestState || currentActiveTab === 'player' || (!song && currentActiveTab !== 'search')) {

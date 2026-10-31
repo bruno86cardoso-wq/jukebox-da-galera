@@ -123,25 +123,7 @@
     <!-- ABA 1: PLAYER DEDICADO COMPLETO -->
     <section id="tabPlayer" style="display: none;">
       <button type="button" class="btn-back-home" onclick="switchTab('search')">← Voltar para o Início</button>
-      <!-- BARRA RÁPIDA: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
-      <div class="top-actions-row">
-        <button type="button" class="btn-top-action invite" onclick="openQrModal()">
-          <span>📲</span> Convidar Galera
-        </button>
-        <button type="button" id="btnToggleJbl" class="btn-top-action sound" onclick="toggleJblMode()">
-          <span id="btnToggleJblText">🔊 Assumir Som da Caixa</span>
-        </button>
-      </div>
 
-      <!-- SELETOR DOS DOIS MODOS NO APP -->
-      <div class="mode-switcher-card host-only">
-        <button id="mobBtnLivre" class="mob-mode-btn livre active" onclick="changeAppMode('livre')">
-          🟢 Modo Livre
-        </button>
-        <button id="mobBtnDesafio" class="mob-mode-btn desafio" onclick="changeAppMode('desafio')">
-          🔥 Modo Desafio
-        </button>
-      </div>
 
       <section class="now-card">
         <div id="themeBanner" class="theme-banner" hidden></div>
@@ -227,22 +209,6 @@
           </div>
         </div>
 
-        <!-- ÁREA DE VOTAÇÃO OBRIGATÓRIA (APENAS NO MODO DESAFIO) -->
-        <div id="voteArea" class="vote-prompt-box" style="display: none;">
-          <div id="votePromptTitle" class="vote-prompt-title">
-            🚨 VOTO OBRIGATÓRIO! Vote para liberar seus pedidos:
-          </div>
-          <div class="vote-buttons">
-            <button id="btnVoteLike" class="btn-vote like" onclick="castVote('like')">
-              <span>👍 CURTI!</span>
-              <small>+2 pts • Recarrega 💣</small>
-            </button>
-            <button id="btnVoteDislike" class="btn-vote dislike" onclick="castVote('dislike')">
-              <span>👎 PULAR!</span>
-              <small id="dislikeBtnSub">Usa 1 💣 Munição</small>
-            </button>
-          </div>
-        </div>
 
         <!-- CONTROLES DE REPRODUÇÃO REMOTOS (VOLTAR / PLAY-PAUSE / PRÓXIMA) -->
         <div id="mobTransportBar" class="mob-transport-bar control-only">
@@ -251,36 +217,52 @@
           <button class="btn-mob-ctrl" onclick="remoteControl('skipSong')">⏭️ Próxima</button>
         </div>
 
-        <!-- REAÇÕES AO VIVO: GOSTEI / NÃO GOSTEI -->
-        <div class="reactions-bar">
-          <button type="button" class="btn-emoji btn-reaction-like" onclick="sendReaction('😍', event)" ontouchstart="sendReaction('😍', event)" title="Gostei!">
-            😍 Gostei
-          </button>
-          <button type="button" class="btn-emoji btn-reaction-dislike" onclick="sendReaction('😡', event)" ontouchstart="sendReaction('😡', event)" title="Não gostei!">
-            😡 Não gostei
-          </button>
-        </div>
       </section>
 
-      <!-- PAINEL DO ANFITRIÃO -->
-      <section class="host-card host-only">
-        <div class="host-card-title">👑 Você é o anfitrião</div>
-        <label class="switch-row">
-          <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
-          <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
-        </label>
-        <div class="host-buttons-row">
-          <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
-          <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>
-        </div>
-      </section>
     </section>
 
     <!-- ABA 2: BUSCA DEDICADA YOUTUBE MUSIC (BARRA NO TOPO) -->
     <section id="tabSearch" class="search-section">
+      <!-- BARRA RÁPIDA: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
+      <div class="top-actions-row">
+        <button type="button" class="btn-top-action invite" onclick="openQrModal()">
+          <span>📲</span> Convidar
+        </button>
+        <button type="button" id="btnToggleJbl" class="btn-top-action sound" onclick="toggleJblMode()">
+          <span id="btnToggleJblText">🔊 Assumir som</span>
+        </button>
+      </div>
+
+      <!-- ÁREA DE VOTAÇÃO OBRIGATÓRIA (APENAS NO MODO DESAFIO) -->
+      <div id="voteArea" class="vote-prompt-box" style="display: none;">
+        <div id="votePromptTitle" class="vote-prompt-title">
+          🚨 VOTO OBRIGATÓRIO! Vote para liberar seus pedidos:
+        </div>
+        <div class="vote-buttons">
+          <button id="btnVoteLike" class="btn-vote like" onclick="castVote('like')">
+            <span>👍 CURTI!</span>
+            <small>+2 pts • Recarrega 💣</small>
+          </button>
+          <button id="btnVoteDislike" class="btn-vote dislike" onclick="castVote('dislike')">
+            <span>👎 PULAR!</span>
+            <small id="dislikeBtnSub">Usa 1 💣 Munição</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- REAÇÕES AO VIVO: GOSTEI / NÃO GOSTEI -->
+      <div id="homeReactions" class="reactions-bar">
+        <button type="button" class="btn-emoji btn-reaction-like" onclick="sendReaction('😍', event)" ontouchstart="sendReaction('😍', event)" title="Gostei!">
+          😍 Gostei
+        </button>
+        <button type="button" class="btn-emoji btn-reaction-dislike" onclick="sendReaction('😡', event)" ontouchstart="sendReaction('😡', event)" title="Não gostei!">
+          😡 Não gostei
+        </button>
+      </div>
+
       <div id="searchLockBanner" class="lock-banner">
         🔒 <strong>Voto Obrigatório no Modo Desafio!</strong><br/>
-        Toque na música tocando (acima) e vote 👍 ou 👎 para liberar novos pedidos!
+        Vote 👍 ou 👎 na música tocando (logo acima) para liberar novos pedidos!
       </div>
 
       <form class="search-bar" onsubmit="handleSearch(event)">
@@ -314,6 +296,29 @@
 
     <!-- ABA 3: RANKING / PARTICIPANTES -->
     <section id="tabRank" style="display: none;">
+      <div class="host-only host-section-title">👑 Controles do anfitrião</div>
+      <!-- SELETOR DOS DOIS MODOS NO APP -->
+      <div class="mode-switcher-card host-only">
+        <button id="mobBtnLivre" class="mob-mode-btn livre active" onclick="changeAppMode('livre')">
+          🟢 Modo Livre
+        </button>
+        <button id="mobBtnDesafio" class="mob-mode-btn desafio" onclick="changeAppMode('desafio')">
+          🔥 Modo Desafio
+        </button>
+      </div>
+      <!-- PAINEL DO ANFITRIÃO -->
+      <section class="host-card host-only">
+        <div class="host-card-title">👑 Você é o anfitrião</div>
+        <label class="switch-row">
+          <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
+          <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
+        </label>
+        <div class="host-buttons-row">
+          <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
+          <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>
+        </div>
+      </section>
+
       <button type="button" class="btn-tool summary-btn" onclick="requestSummary()">📊 Ver resumo da festa</button>
       <div id="mobRankList" class="results-list"></div>
     </section>

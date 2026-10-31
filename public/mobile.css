@@ -1937,3 +1937,25 @@ body:not(.can-control) .control-only { display: none !important; }
 .btn-back-home:active {
   transform: scale(0.98);
 }
+
+.host-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fbbf24;
+  margin: 2px 0 10px;
+}
+
+#homeReactions {
+  margin-bottom: 14px;
+}
+
+/* No Início, Convidar e Som ficam lado a lado também em celular. */
+@media (max-width: 400px) {
+  #tabSearch .top-actions-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  #tabSearch .btn-top-action {
+    padding: 11px 8px;
+    font-size: 12px;
+  }
+}
