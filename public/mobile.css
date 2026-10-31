@@ -1959,3 +1959,13 @@ body:not(.can-control) .control-only { display: none !important; }
     font-size: 12px;
   }
 }
+
+.mini-desafio-status {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fbbf24;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

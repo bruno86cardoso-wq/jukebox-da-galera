@@ -1017,7 +1017,23 @@ function isMustVoteLocked() {
 const mysteryClock = createMysteryClock(seconds => {
   const badge = document.getElementById('nowMysteryBadge');
   if (badge && badge.dataset.mystery === '1') badge.textContent = `🕵️ Mistério (${seconds}s)`;
+  updateMiniDesafioStatus(seconds);
 });
+
+// No Desafio, o cartão do Início mostra o placar de votos e o tempo do mistério.
+function updateMiniDesafioStatus(mysterySeconds) {
+  const el = document.getElementById('miniPlayerStatus');
+  if (!el) return;
+  const s = latestState?.currentSong;
+  if (!s || latestState.mode !== 'desafio') {
+    el.hidden = true;
+    return;
+  }
+  const seconds = typeof mysterySeconds === 'number' ? mysterySeconds : mysteryClock.remaining();
+  const mystery = !s.isRevealed ? `🕵️ ${seconds}s · ` : '';
+  el.textContent = `${mystery}👍 ${s.likesCount || 0} · 👎 ${s.dislikesEffective || 0}/${s.dislikeThreshold || 1}`;
+  el.hidden = false;
+}
 
 socket.on('stateUpdate', (state, you) => {
   hideSplashScreen();
@@ -1266,6 +1282,7 @@ function updateTopMiniPlayerBar() {
     if (eqEl) eqEl.hidden = false;
     const miniBar = document.getElementById('topMiniProgressBar');
     if (miniBar) miniBar.style.width = '0%';
+    updateMiniDesafioStatus();
     return;
   }
   if (titleEl) titleEl.textContent = song.title;
@@ -1275,6 +1292,7 @@ function updateTopMiniPlayerBar() {
     thumbEl.hidden = !song.thumbnail;
   }
   if (eqEl) eqEl.hidden = Boolean(song.thumbnail);
+  updateMiniDesafioStatus();
 
   const isPlaying = jblModeActive ? !jblVideoEl.paused : !latestState.isPaused;
   const playIcon = document.getElementById('miniIconPlay');
@@ -1377,6 +1395,9 @@ function remoteControl(action) {
   try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
   if (lastYou && !lastYou.canControl) {
     return showToast('🔒 O anfitrião deixou os controles só com ele.');
+  }
+  if (latestState?.mode === 'desafio' && !lastYou?.isHost && (action === 'skipSong' || action === 'previousSong')) {
+    return showToast('🔥 No Modo Desafio só o anfitrião pula. Vote 👎 para derrubar a música!');
   }
   if (action === 'togglePause' && jblModeActive) {
     if (jblVideoEl.paused) resumeJblPlayback();

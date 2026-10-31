@@ -292,3 +292,24 @@ test('busca rejeita parâmetros inválidos e pedidos validam ID e metadados', as
   const fakeQr = await (await fetch(`http://127.0.0.1:${f.port}/api/qrcode?festa=${client.code}&chave=abc`)).json();
   assert.ok(!fakeQr.url.includes('chave'));
 });
+
+test('no Desafio só o anfitrião pula ou volta; a galera derruba no voto', async t => {
+  const f = await fixture(t);
+  const host = await f.host();
+  const bia = await f.guest(host.code);
+  const caio = await f.guest(host.code);
+  await host.call('registerPlayer', { name: 'Ana' });
+  await bia.call('registerPlayer', { name: 'Bia' });
+  await caio.call('registerPlayer', { name: 'Caio' });
+  await host.call('hostAction', { action: 'setMode', payload: { mode: 'desafio' } });
+  await bia.call('addSong', { song: song('aaaaaaaaaaa') });
+
+  for (const action of ['skipSong', 'previousSong']) {
+    assert.equal((await caio.call('hostAction', { action })).ok, false, `${action} bloqueado`);
+    assert.equal((await bia.call('hostAction', { action })).ok, false, 'dono não escapa do veto');
+  }
+  assert.equal(f.jukebox.getPublicState(host.code).currentSong.videoId, 'aaaaaaaaaaa');
+  assert.equal((await caio.call('hostAction', { action: 'togglePause' })).ok, true, 'pausar continua liberado');
+  assert.equal((await host.call('hostAction', { action: 'skipSong' })).ok, true);
+  assert.equal(f.jukebox.getPublicState(host.code).currentSong, null);
+});
