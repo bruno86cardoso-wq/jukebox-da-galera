@@ -75,22 +75,14 @@ test('celular interrompe e descarrega a mídia ao perder o controle do player', 
   assert.equal(video.src, '');
 });
 
-test('só áudio não carrega vídeo e troca de formato descarrega o player anterior', async () => {
+test('celular toca só áudio e ignora pedido de clipe', async () => {
   const b = browser('mobile');
   b.handlers.get('stateUpdate')(state());
   await vm.runInContext('toggleJblMode()', b.context);
   const audio = b.elements.get('mobJblAudio');
-  const video = b.elements.get('mobJblVideo');
-  assert.equal(video.src, '');
-  assert.equal(video.style.display, 'none');
   assert.ok(audio.src.startsWith('/api/audio/'));
   vm.runInContext("setJblMediaMode('video')", b.context);
-  assert.equal(audio.src, '');
-  assert.equal(audio.paused, true);
-  assert.ok(video.src.startsWith('/api/stream/'));
-  vm.runInContext("setJblMediaMode('audio')", b.context);
-  assert.equal(video.src, '');
-  assert.equal(video.paused, true);
+  assert.equal(vm.runInContext('jblMediaMode', b.context), 'audio');
   assert.ok(audio.src.startsWith('/api/audio/'));
 });
 

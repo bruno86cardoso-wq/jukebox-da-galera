@@ -83,7 +83,6 @@
     <!-- ELEMENTOS DE CONTROLE INTERNOS (MANTIDOS OCULTOS PARA COMPATIBILIDADE) -->
     <div style="display:none;" aria-hidden="true">
       <button id="btnMediaAudio" onclick="setJblMediaMode('audio')"></button>
-      <button id="btnMediaVideo" onclick="setJblMediaMode('video')"></button>
     </div>
 
     <!-- NAVEGAÇÃO POR ABAS ESTILO SPOTIFY / YOUTUBE MUSIC -->
@@ -175,13 +174,11 @@
               <div class="player-mode-pills" style="display: none;" aria-hidden="true">
                 <button type="button" id="btnPillYt" class="player-pill active" onclick="setJblMediaMode('youtube')">▶️ YouTube Direto</button>
                 <button type="button" id="btnPillAudio" class="player-pill" onclick="setJblMediaMode('audio')">🎵 Áudio</button>
-                <button type="button" id="btnPillVideo" class="player-pill" onclick="setJblMediaMode('video')">🎬 Clipe</button>
               </div>
             </div>
 
-            <!-- Mídia (Áudio oculto sem controles feios nativos, Vídeo moderno para modo clipe) -->
+            <!-- Mídia: o app toca só áudio -->
             <audio id="mobJblAudio" preload="auto" aria-label="Reprodutor de música" class="native-audio-hidden"></audio>
-            <video id="mobJblVideo" controls preload="auto" playsinline x-webkit-airplay="allow" aria-label="Reprodutor de clipe"></video>
 
             <!-- Fallback Oficial YouTube Embed (ativa automaticamente caso a nuvem não tenha a ponte do PC) -->
             <div id="mobYtFallbackBox" class="mob-yt-fallback-box" style="display:none;">

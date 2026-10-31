@@ -64,8 +64,8 @@ let jblCurrentVideoId = null;
 let jblLoadedMediaMode = null;
 let partyInviteUrl = window.location.origin;
 const jblAudioEl = document.getElementById('mobJblAudio');
-const jblClipEl = document.getElementById('mobJblVideo');
-let jblVideoEl = jblMediaMode === 'audio' ? jblAudioEl : jblClipEl;
+// O app toca só áudio; o player do YouTube entra apenas como reserva.
+const jblVideoEl = jblAudioEl;
 let jblPlaybackState = 'idle';
 
 function formatTime(seconds) {
@@ -215,7 +215,7 @@ function resumeJblPlayback() {
   playJblMedia();
 }
 
-for (const element of [jblAudioEl, jblClipEl]) {
+for (const element of [jblAudioEl]) {
   for (const [event, status] of [['loadstart', 'loading'], ['waiting', 'loading'], ['playing', 'playing'], ['pause', 'paused']]) {
     element.addEventListener(event, () => {
       if (element === jblVideoEl && jblModeActive && jblCurrentSongId && !ytFallbackActive) updatePlaybackStatus(status);
@@ -321,7 +321,7 @@ async function toggleJblMode(forcedState) {
 }
 
 function setJblMediaMode(mode) {
-  const next = ['youtube', 'video', 'audio'].includes(mode) ? mode : 'audio';
+  const next = mode === 'youtube' ? 'youtube' : 'audio';
   if (next === jblMediaMode && !(next === 'youtube' && !ytFallbackActive)) return;
   jblMediaMode = next;
   localStorage.setItem('jukebox_media_mode', next);
@@ -369,70 +369,20 @@ function updateJblUi() {
   }
   const isYt = jblMediaMode === 'youtube' || ytFallbackActive;
   if (jblAudioEl) jblAudioEl.style.display = (jblMediaMode === 'audio' && !isYt) ? 'block' : 'none';
-  if (jblClipEl) jblClipEl.style.display = (jblMediaMode === 'video' && !isYt) ? 'block' : 'none';
   const pillAudio = document.getElementById('btnPillAudio');
-  const pillVideo = document.getElementById('btnPillVideo');
   const pillYt = document.getElementById('btnPillYt');
   if (pillAudio) pillAudio.classList.toggle('active', jblMediaMode === 'audio' && !isYt);
-  if (pillVideo) pillVideo.classList.toggle('active', jblMediaMode === 'video' && !isYt);
   if (pillYt) pillYt.classList.toggle('active', isYt);
-  for (const mode of ['audio', 'video']) {
-    const button = document.getElementById(mode === 'audio' ? 'btnMediaAudio' : 'btnMediaVideo');
-    if (button) {
-      button.classList.toggle('active', jblMediaMode === mode);
-      button.setAttribute('aria-pressed', String(jblMediaMode === mode));
-    }
+  const audioButton = document.getElementById('btnMediaAudio');
+  if (audioButton) {
+    audioButton.classList.toggle('active', jblMediaMode === 'audio');
+    audioButton.setAttribute('aria-pressed', String(jblMediaMode === 'audio'));
   }
   updatePlaybackStatus();
 }
 
 function castToTv() {
   openQrModal();
-}
-
-function closeCastModal() {}
-
-async function startCastWithMode(mode) {
-  closeCastModal();
-  jblMediaMode = mode; // 'audio' ou 'video'
-
-  if (!jblModeActive) {
-    jblModeActive = true;
-    if (navigator.wakeLock) {
-      navigator.wakeLock.request('screen').catch(() => {});
-    }
-  }
-
-  jblLoadedMediaMode = null;
-  updateJblUi();
-
-  if (latestState && latestState.currentSong) {
-    syncJblPlayer(latestState.currentSong);
-  }
-  playJblMedia();
-  socket.claimPlayback().catch(() => {});
-
-  const targetEl = (mode === 'video' ? jblClipEl : jblVideoEl);
-  // Tenta abrir o seletor nativo de Chromecast (Android/Chrome)
-  if (targetEl.remote && typeof targetEl.remote.prompt === 'function') {
-    try {
-      await targetEl.remote.prompt();
-      return;
-    } catch (e) {}
-  }
-  // Tenta abrir o seletor nativo de AirPlay (iPhone/Safari)
-  if (typeof targetEl.webkitShowPlaybackTargetPicker === 'function') {
-    try {
-      targetEl.webkitShowPlaybackTargetPicker();
-      return;
-    } catch (e) {}
-  }
-
-  if (mode === 'audio') {
-    showToast('🎵 Modo Só Música ativo! Conecte no Bluetooth/JBL ou espelhe o som na TV.');
-  } else {
-    showToast('🎬 Clipe ativado! Toque no ícone de Transmitir no vídeo ou espelhe na TV.');
-  }
 }
 
 function updateMediaSession(song) {
@@ -706,9 +656,9 @@ function onMobYtStateChange(e) {
   }
 }
 
-const recoveries = new Map([jblAudioEl, jblClipEl].map(element => [element, attachMediaRecovery(element, {
-  isActive: () => jblModeActive && element === jblVideoEl,
-  source: () => jblCurrentVideoId ? (element === jblClipEl ? '/api/stream/' : '/api/audio/') + jblCurrentVideoId : null,
+const jblRecovery = attachMediaRecovery(jblAudioEl, {
+  isActive: () => jblModeActive,
+  source: () => jblCurrentVideoId ? '/api/audio/' + jblCurrentVideoId : null,
   play: () => { if (!latestState?.isPaused) playJblMedia(); },
   failed: () => {
     updatePlaybackStatus('error');
@@ -716,8 +666,7 @@ const recoveries = new Map([jblAudioEl, jblClipEl].map(element => [element, atta
       activateYtFallback(latestState.currentSong);
     }
   }
-})]));
-let jblRecovery = recoveries.get(jblVideoEl);
+});
 
 function syncJblPlayer(song) {
   const box = document.getElementById('jblPlayerBox');
@@ -760,23 +709,10 @@ function syncJblPlayer(song) {
       : 0;
 
     jblRecovery.reset();
-    const previous = jblVideoEl;
-    jblVideoEl = jblMediaMode === 'audio' ? jblAudioEl : jblClipEl;
-    jblRecovery = recoveries.get(jblVideoEl);
-    jblRecovery.reset();
-    if (previous !== jblVideoEl) {
-      previous.pause();
-      previous.removeAttribute('src');
-      previous.load();
-    }
     jblCurrentSongId = song.id;
     jblCurrentVideoId = song.videoId;
     jblLoadedMediaMode = jblMediaMode;
-
-    if (jblMediaMode === 'video') jblVideoEl.poster = song.thumbnail || '';
-    const endpoint = jblMediaMode === 'video'
-      ? `/api/stream/${song.videoId}`
-      : `/api/audio/${song.videoId}`;
+    const endpoint = `/api/audio/${song.videoId}`;
 
     updatePlaybackStatus(latestState?.isPaused ? 'paused' : 'loading');
     jblVideoEl.preload = 'auto';
@@ -794,10 +730,10 @@ function syncJblPlayer(song) {
 }
 
 let jblPreloadMediaEl = null;
-function preloadNextSongAudio(videoId, isVideo) {
+function preloadNextSongAudio(videoId) {
   if (!videoId || typeof document === 'undefined' || typeof document.createElement !== 'function') return;
   if (!jblPreloadMediaEl) {
-    jblPreloadMediaEl = document.createElement(isVideo ? 'video' : 'audio');
+    jblPreloadMediaEl = document.createElement('audio');
     jblPreloadMediaEl.preload = 'auto';
     jblPreloadMediaEl.muted = true;
     jblPreloadMediaEl.style.display = 'none';
@@ -805,7 +741,7 @@ function preloadNextSongAudio(videoId, isVideo) {
       document.body.appendChild(jblPreloadMediaEl);
     }
   }
-  const targetSrc = (isVideo ? '/api/stream/' : '/api/audio/') + videoId;
+  const targetSrc = '/api/audio/' + videoId;
   if (!jblPreloadMediaEl.src || !jblPreloadMediaEl.src.endsWith(targetSrc)) {
     jblPreloadMediaEl.src = targetSrc;
     jblPreloadMediaEl.load();
@@ -1071,11 +1007,8 @@ socket.on('stateUpdate', (state, you) => {
   // Pré-aquece a próxima música da fila para tocar sem nenhum delay!
   if (state.queue && state.queue.length > 0 && jblModeActive) {
     const nextSong = state.queue[0];
-    const endpoint = jblMediaMode === 'video'
-      ? `/api/stream/${nextSong.videoId}`
-      : `/api/audio/${nextSong.videoId}`;
-    fetch(endpoint, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
-    preloadNextSongAudio(nextSong.videoId, jblMediaMode === 'video');
+    fetch(`/api/audio/${nextSong.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
+    preloadNextSongAudio(nextSong.videoId);
   }
 
   document.getElementById('desafioStatsBox').style.display = isDesafio ? 'flex' : 'none';
