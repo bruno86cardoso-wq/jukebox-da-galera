@@ -208,3 +208,18 @@ test('trocar de modo pede confirmação e cancelar não muda nada', () => {
   vm.runInContext("changeAppMode('livre')", b.context);
   assert.equal(asked.length, 2, 'já está no modo: não pergunta');
 });
+
+test('assumir ou soltar o som pede confirmação quando tira o som de outro aparelho', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state(), { isHost: false, soundDeviceOnline: true });
+  let answer = false;
+  b.context.confirm = () => answer;
+  await vm.runInContext('toggleJblMode()', b.context);
+  assert.equal(vm.runInContext('jblModeActive', b.context), false, 'cancelou: continua no outro aparelho');
+  answer = true;
+  await vm.runInContext('toggleJblMode()', b.context);
+  assert.equal(vm.runInContext('jblModeActive', b.context), true);
+  answer = false;
+  await vm.runInContext('toggleJblMode()', b.context);
+  assert.equal(vm.runInContext('jblModeActive', b.context), true, 'cancelou: não para o som');
+});

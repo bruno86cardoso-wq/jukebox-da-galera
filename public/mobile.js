@@ -295,6 +295,12 @@ function handlePlaybackBadgeClick() {
 async function toggleJblMode(forcedState) {
   const nextState = typeof forcedState === 'boolean' ? forcedState : !jblModeActive;
   if (nextState === jblModeActive) return;
+  // Um toque sem querer não pode tirar o som da caixa no meio da festa.
+  if (typeof confirm === 'function') {
+    if (nextState && lastYou?.soundDeviceOnline &&
+        !confirm('Outro aparelho já está tocando o som da festa (provavelmente o da caixa).\n\nTrazer o som para ESTE celular?')) return;
+    if (!nextState && !confirm('Parar o som neste celular?\n\nA música para na caixa até alguém assumir o som de novo.')) return;
+  }
   if (nextState) {
     jblModeActive = true;
     updateJblUi();
