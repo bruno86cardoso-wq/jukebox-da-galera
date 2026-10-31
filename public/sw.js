@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jukebox-cache-v1';
+const CACHE_NAME = 'jukebox-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/mobile.html',
@@ -34,6 +34,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Não intercepta chamadas de outros domínios (YouTube, Google Fonts, etc.)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // Não intercepta chamadas de API, streaming de áudio/vídeo ou websockets
   if (

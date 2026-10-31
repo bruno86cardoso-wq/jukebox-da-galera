@@ -365,7 +365,7 @@ function updateJblUi() {
   }
   const statusText = document.getElementById('jblModeStatusText');
   if (statusText) {
-    statusText.textContent = (jblMediaMode === 'youtube' || ytFallbackActive) ? '▶️ YouTube Direto (Nuvem)' : '🎵 Som no Celular / JBL';
+    statusText.textContent = '🎵 Som no Celular';
   }
   const isYt = jblMediaMode === 'youtube' || ytFallbackActive;
   if (jblAudioEl) jblAudioEl.style.display = (jblMediaMode === 'audio' && !isYt) ? 'block' : 'none';
@@ -550,6 +550,7 @@ function loadYtIframeApi() {
   if (typeof window !== 'undefined') window._ytApiLoading = true;
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
+  tag.referrerPolicy = 'strict-origin-when-cross-origin';
   const first = typeof document.getElementsByTagName === 'function' ? document.getElementsByTagName('script')[0] : null;
   if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
   else if (document.head && typeof document.head.appendChild === 'function') document.head.appendChild(tag);
@@ -601,7 +602,10 @@ function activateYtFallback(song) {
 
   if (mobYtPlayer && typeof mobYtPlayer.loadVideoById === 'function') {
     try {
-      mobYtPlayer.loadVideoById(song.videoId);
+      mobYtPlayer.loadVideoById({
+        videoId: song.videoId,
+        startSeconds: 0
+      });
       updatePlaybackStatus(latestState?.isPaused ? 'paused' : 'playing');
     } catch (e) {}
     return;
@@ -610,20 +614,32 @@ function activateYtFallback(song) {
   const container = document.getElementById('mobYtPlayer');
   if (!container) return;
 
+  const currentOrigin = (typeof window !== 'undefined' && window.location && window.location.origin)
+    ? window.location.origin
+    : 'https://jukebox-da-galera.onrender.com';
+
   try {
     mobYtPlayer = new window.YT.Player('mobYtPlayer', {
       height: '100%',
       width: '100%',
       videoId: song.videoId,
+      host: 'https://www.youtube.com',
       playerVars: {
         autoplay: 1,
         controls: 1,
         playsinline: 1,
         rel: 0,
-        modestbranding: 1
+        modestbranding: 1,
+        enablejsapi: 1,
+        origin: currentOrigin,
+        widget_referrer: currentOrigin
       },
       events: {
         onReady: (e) => {
+          const iframe = e.target.getIframe?.() || document.querySelector('#mobYtPlayerWrap iframe');
+          if (iframe && typeof iframe.setAttribute === 'function') {
+            iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+          }
           if (!latestState?.isPaused) {
             try { e.target.playVideo(); } catch (err) {}
           }

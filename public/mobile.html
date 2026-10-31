@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="theme-color" content="#090b14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -171,7 +172,7 @@
                 </span>
                 <span id="jblModeStatusText">🎵 Som no Celular</span>
               </div>
-              <div class="player-mode-pills">
+              <div class="player-mode-pills" style="display: none;" aria-hidden="true">
                 <button type="button" id="btnPillYt" class="player-pill active" onclick="setJblMediaMode('youtube')">▶️ YouTube Direto</button>
                 <button type="button" id="btnPillAudio" class="player-pill" onclick="setJblMediaMode('audio')">🎵 Áudio</button>
                 <button type="button" id="btnPillVideo" class="player-pill" onclick="setJblMediaMode('video')">🎬 Clipe</button>
