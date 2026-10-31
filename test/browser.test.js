@@ -223,3 +223,19 @@ test('assumir ou soltar o som pede confirmação quando tira o som de outro apar
   await vm.runInContext('toggleJblMode()', b.context);
   assert.equal(vm.runInContext('jblModeActive', b.context), true, 'cancelou: não para o som');
 });
+
+test('primeiro toque destrava o áudio só no celular que toca o som', async () => {
+  const guest = browser('mobile');
+  vm.runInContext('unlockJblAudio()', guest.context);
+  assert.equal(guest.elements.get('mobJblAudio').src, '', 'convidado: não mexe no áudio');
+
+  const b = browser('mobile');
+  vm.runInContext('jblModeActive = true', b.context);
+  const audio = b.elements.get('mobJblAudio');
+  vm.runInContext('unlockJblAudio()', b.context);
+  assert.ok(audio.src.startsWith('data:audio/wav'), 'toca um silêncio no toque');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(vm.runInContext('jblAudioUnlocked', b.context), true);
+  assert.equal(audio.src, '', 'limpa o silêncio depois');
+  assert.equal(audio.paused, true);
+});

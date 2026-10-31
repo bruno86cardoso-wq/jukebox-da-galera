@@ -215,6 +215,45 @@ function resumeJblPlayback() {
   playJblMedia();
 }
 
+// ==========================================
+// DESTRAVA O ÁUDIO NO PRIMEIRO TOQUE (iPhone e alguns Android)
+// O navegador só deixa o som começar com um toque na tela. Tocando um silêncio
+// curtinho no primeiro toque, o mesmo player fica liberado para trocar de música
+// sozinho depois (música acabou, alguém pulou, outro celular pediu).
+// ==========================================
+const SILENT_WAV = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let jblAudioUnlocked = false;
+
+function unlockJblAudio() {
+  // Só no celular que toca o som da festa: nos convidados, até um silêncio pausaria o app de música deles.
+  if (!jblModeActive || jblAudioUnlocked || !jblAudioEl || typeof jblAudioEl.play !== 'function') return;
+  // Já tem música esperando um toque: o toque serve para tocá-la.
+  if (jblCurrentVideoId) {
+    if (jblModeActive && jblPlaybackState === 'blocked' && !latestState?.isPaused) {
+      playJblMedia().then(() => { if (!jblAudioEl.paused) jblAudioUnlocked = true; });
+    }
+    return;
+  }
+  try {
+    jblAudioEl.src = SILENT_WAV;
+    const attempt = jblAudioEl.play();
+    Promise.resolve(attempt).then(() => {
+      jblAudioUnlocked = true;
+      // Só limpa se nenhuma música começou nesse meio tempo.
+      if (!jblCurrentVideoId) {
+        jblAudioEl.pause();
+        jblAudioEl.removeAttribute('src');
+      }
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  for (const type of ['touchend', 'click', 'keydown']) {
+    document.addEventListener(type, unlockJblAudio, { capture: true, passive: true });
+  }
+}
+
 for (const element of [jblAudioEl]) {
   for (const [event, status] of [['loadstart', 'loading'], ['waiting', 'loading'], ['playing', 'playing'], ['pause', 'paused']]) {
     element.addEventListener(event, () => {
@@ -309,6 +348,7 @@ async function toggleJblMode(forcedState) {
       syncJblPlayer(latestState.currentSong);
     }
     // Desbloqueia áudio de imediato no contexto do toque do usuário
+    unlockJblAudio();
     playJblMedia();
     const claimed = await socket.claimPlayback();
     if (!claimed) {
