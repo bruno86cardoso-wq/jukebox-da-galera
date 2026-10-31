@@ -183,6 +183,15 @@ function createMysteryClock(render) {
   return { update, remaining };
 }
 
+// Pergunta antes de trocar de modo, para um toque sem querer não mudar a festa.
+function confirmModeChange(mode, currentMode) {
+  if (mode === currentMode) return false;
+  const text = mode === 'desafio'
+    ? 'Trocar para o 🔥 Modo Desafio?\n\nA galera vai votar (👍/👎) em cada música, quem pediu fica em segredo e a fila toca uma música de cada pessoa por vez.'
+    : 'Trocar para o 🟢 Modo Livre?\n\nA votação e o placar do Desafio param, e a fila volta a tocar até 2 seguidas por pessoa.';
+  return confirm(text);
+}
+
 /** Cor média da capa (servida pelo próprio servidor para o canvas poder ler). */
 function coverColor(videoId) {
   return new Promise(resolve => {

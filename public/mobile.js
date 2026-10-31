@@ -989,6 +989,7 @@ socket.on('connect', async () => {
 });
 
 function changeAppMode(mode) {
+  if (!confirmModeChange(mode, latestState?.mode)) return;
   socket.emit('hostAction', { action: 'setMode', payload: { mode } }, result => {
     if (result.ok) showToast(mode === 'livre' ? '🟢 Modo Livre ativado!' : '🔥 Modo Desafio ativado!');
   });

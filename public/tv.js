@@ -513,6 +513,12 @@ function toggleQrMode() {
   refreshQrCode(currentQrMode);
 }
 
+// Botões de modo do telão: pedem confirmação antes de trocar.
+function chooseMode(mode) {
+  if (!confirmModeChange(mode, lastState?.mode)) return;
+  setMode(mode);
+}
+
 function setMode(mode) {
   unlockAudioContext();
   socket.emit('hostAction', { action: 'setMode', payload: { mode } });

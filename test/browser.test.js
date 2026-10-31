@@ -191,3 +191,20 @@ test('recuperação limita tentativas e cancela retries ao mudar de música', ()
   while (b.timers.size) advance();
   assert.equal(plays, 2);
 });
+
+test('trocar de modo pede confirmação e cancelar não muda nada', () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state(), { isHost: true });
+  const { sent } = spySocket(b);
+  let answer = false;
+  const asked = [];
+  b.context.confirm = text => { asked.push(text); return answer; };
+  vm.runInContext("changeAppMode('desafio')", b.context);
+  assert.equal(sent.length, 0, 'cancelou: não troca');
+  answer = true;
+  vm.runInContext("changeAppMode('desafio')", b.context);
+  assert.equal(sent.at(-1).data.payload.mode, 'desafio');
+  assert.equal(asked.length, 2);
+  vm.runInContext("changeAppMode('livre')", b.context);
+  assert.equal(asked.length, 2, 'já está no modo: não pergunta');
+});
