@@ -208,7 +208,7 @@ function createJukebox(options = {}) {
     for (const id of entry.sockets) {
       const socket = io.sockets.sockets.get(id);
       const session = sessions.get(id);
-      if (socket && session) socket.emit('stateUpdate', base, { ...entry.party.viewFor(session.playerId, session.isHost), isActivePlayer: entry.activeTvSocketId === id });
+      if (socket && session) socket.emit('stateUpdate', base, { ...entry.party.viewFor(session.playerId, session.isHost), isActivePlayer: entry.activeTvSocketId === id, soundDeviceOnline: Boolean(entry.activeTvSocketId) });
     }
   }
   function broadcastAll() { for (const entry of parties.values()) broadcastState(entry); }

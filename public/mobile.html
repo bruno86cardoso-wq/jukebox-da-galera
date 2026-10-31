@@ -87,22 +87,23 @@
 
     <!-- NAVEGAÇÃO POR ABAS ESTILO SPOTIFY / YOUTUBE MUSIC -->
     <div class="tabs">
-      <button id="tabBtnPlayer" class="tab-btn" onclick="switchTab('player')">🎵 Player</button>
-      <button id="tabBtnSearch" class="tab-btn active" onclick="switchTab('search')">🔍 Buscar</button>
+      <button id="tabBtnSearch" class="tab-btn active" onclick="switchTab('search')">🏠 Início</button>
       <button id="tabBtnQueue" class="tab-btn" onclick="switchTab('queue')">📋 Fila (<span id="mobQueueCount">0</span>)</button>
       <button id="tabBtnRank" class="tab-btn" onclick="switchTab('rank')">🏆 Galera</button>
     </div>
 
     <!-- MINI PLAYER FIXO LOGO ABAIXO DAS ABAS (COM VOLTAR, PLAY/PAUSE E PULAR) -->
     <div id="topMiniPlayerBar" class="top-mini-player-bar" style="display: none;">
-      <div class="mini-player-info" onclick="switchTab('player')" title="Toque para ver o Player completo">
-        <span class="mini-player-eq">🎵</span>
+      <div class="mini-player-info" onclick="switchTab('player')" title="Toque para abrir o player completo">
+        <img id="miniPlayerThumb" class="mini-player-thumb" alt="" hidden />
+        <span id="miniPlayerEq" class="mini-player-eq">🎵</span>
         <div class="mini-player-text">
           <div id="miniPlayerTitle" class="mini-title">Tocando agora</div>
           <div id="miniPlayerArtist" class="mini-artist">Carregando...</div>
+          <div class="mini-open-hint">Toque para abrir o player ›</div>
         </div>
       </div>
-      <div class="mini-player-controls">
+      <div id="miniPlayerControls" class="mini-player-controls">
         <button type="button" class="mini-ctrl-btn" onclick="remoteControl('previousSong')" title="Voltar música" aria-label="Voltar música">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
         </button>
@@ -121,6 +122,7 @@
 
     <!-- ABA 1: PLAYER DEDICADO COMPLETO -->
     <section id="tabPlayer" style="display: none;">
+      <button type="button" class="btn-back-home" onclick="switchTab('search')">← Voltar para o Início</button>
       <!-- BARRA RÁPIDA: CONVIDAR GALERA + ASSUMIR SOM DA CAIXA -->
       <div class="top-actions-row">
         <button type="button" class="btn-top-action invite" onclick="openQrModal()">
@@ -152,8 +154,8 @@
         <div id="nowPlayingContent" class="now-song-row">
           <div class="now-meta">
             <div class="now-title">Nenhuma música tocando</div>
-            <div class="now-artist">Toque em Buscar para pedir uma música!</div>
-            <button type="button" class="btn-goto-search" onclick="switchTab('search')">🔍 Ir para Buscar Músicas</button>
+            <div class="now-artist">Peça uma música no Início!</div>
+            <button type="button" class="btn-goto-search" onclick="switchTab('search')">🔍 Pedir uma música</button>
           </div>
         </div>
 
@@ -278,12 +280,12 @@
     <section id="tabSearch" class="search-section">
       <div id="searchLockBanner" class="lock-banner">
         🔒 <strong>Voto Obrigatório no Modo Desafio!</strong><br/>
-        Vote 👍 ou 👎 na música que está tocando no Player para liberar novos pedidos!
+        Toque na música tocando (acima) e vote 👍 ou 👎 para liberar novos pedidos!
       </div>
 
       <form class="search-bar" onsubmit="handleSearch(event)">
         <div class="search-input-wrap">
-          <input id="searchInput" class="input-text" type="search" name="music_search_query" placeholder="Buscar música ou artista..." oninput="onSearchInput(this.value)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" data-lpignore="true" data-form-type="other" />
+          <input id="searchInput" class="input-text" type="search" name="music_search_query" placeholder="🎵 Pedir uma música..." oninput="onSearchInput(this.value)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" data-lpignore="true" data-form-type="other" />
           <button id="btnClearSearch" type="button" class="btn-clear-search" onclick="clearSearchInput()" aria-label="Limpar busca">✕</button>
           <div id="searchSuggestionsBox" class="search-suggestions" style="display: none;"></div>
         </div>
@@ -296,7 +298,7 @@
 
       <div id="searchResults" class="results-list">
         <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
-          Pesquise qualquer música ou clipe do <strong>YouTube Music</strong>!<br/>
+          Digite o nome da música ou do artista e toque em <strong>Buscar</strong>!<br/>
           <small>Você pode adicionar quantas quiser (a fila organiza até 2 seguidas por pessoa).</small>
         </div>
       </div>

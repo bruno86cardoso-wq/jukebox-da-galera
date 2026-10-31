@@ -1898,3 +1898,42 @@ body:not(.can-control) .control-only { display: none !important; }
 .summary-item span { font-size: 13px; color: var(--text-muted); }
 .summary-ach { font-size: 15px; }
 .summary-ach span { font-size: 18px; color: inherit; }
+
+/* INÍCIO: cartão da música + busca na mesma tela */
+.mini-player-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mini-open-hint {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-top: 2px;
+}
+
+.top-mini-player-bar.is-empty {
+  border-style: dashed;
+}
+
+.btn-back-home {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.btn-back-home:active {
+  transform: scale(0.98);
+}

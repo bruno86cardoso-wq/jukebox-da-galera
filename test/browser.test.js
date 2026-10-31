@@ -83,6 +83,24 @@ function spySocket(b) {
   return { sock, sent };
 }
 
+test('anfitrião assume o som sozinho só quando nenhum aparelho está tocando', async () => {
+  const busy = browser('mobile');
+  busy.handlers.get('stateUpdate')(state(), { isHost: true, soundDeviceOnline: true });
+  await vm.runInContext('autoClaimSoundIfHost()', busy.context);
+  assert.equal(vm.runInContext('jblModeActive', busy.context), false);
+
+  const guest = browser('mobile');
+  guest.handlers.get('stateUpdate')(state(), { isHost: false, soundDeviceOnline: false });
+  await vm.runInContext('autoClaimSoundIfHost()', guest.context);
+  assert.equal(vm.runInContext('jblModeActive', guest.context), false);
+
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state(), { isHost: true, soundDeviceOnline: false });
+  await vm.runInContext('autoClaimSoundIfHost()', b.context);
+  assert.equal(vm.runInContext('jblModeActive', b.context), true);
+  assert.ok(b.elements.get('mobJblAudio').src.includes('/api/audio/'));
+});
+
 test('queda de conexão não para a música e o fim dela é avisado ao reconectar', async () => {
   const b = browser('mobile');
   b.handlers.get('stateUpdate')(state());

@@ -934,6 +934,21 @@ socket.on('disconnect', () => {
   showToast('📶 Sem conexão. A música continua e sincroniza quando a internet voltar.');
 });
 
+// Quem criou a festa vira o som sozinho ao abrir o app, se nenhum aparelho estiver tocando.
+async function autoClaimSoundIfHost() {
+  if (jblModeActive || !lastYou?.isHost || lastYou.soundDeviceOnline) return;
+  jblModeActive = true;
+  updateJblUi();
+  requestScreenWakeLock();
+  if (!await socket.claimPlayback()) {
+    jblModeActive = false;
+    updateJblUi();
+    return;
+  }
+  syncJblPlayer(latestState?.currentSong);
+  updateJblUi();
+}
+
 function stopJblAfterLostConnection() {
   pendingEndedSongId = null;
   if (!jblModeActive) return;
@@ -955,7 +970,9 @@ socket.on('connect', async () => {
     return;
   }
   hideSplashScreen();
-  if (reclaimJbl) {
+  if (!reclaimJbl) {
+    await autoClaimSoundIfHost();
+  } else {
     reclaimJbl = false;
     if (!await socket.claimPlayback()) {
       stopJblAfterLostConnection();
@@ -1062,8 +1079,8 @@ socket.on('stateUpdate', (state, you) => {
     nowContent.innerHTML = `
       <div class="now-meta">
         <div class="now-title">Nenhuma música tocando</div>
-        <div class="now-artist">Toque em Buscar para pedir uma música!</div>
-        <button type="button" class="btn-goto-search" onclick="switchTab('search')">🔍 Ir para Buscar Músicas</button>
+        <div class="now-artist">Peça uma música no Início!</div>
+        <button type="button" class="btn-goto-search" onclick="switchTab('search')">🔍 Pedir uma música</button>
       </div>
     `;
     voteArea.style.display = 'none';
@@ -1222,16 +1239,36 @@ function parseDurationToSeconds(dur) {
 function updateTopMiniPlayerBar() {
   const bar = document.getElementById('topMiniPlayerBar');
   if (!bar) return;
-  if (!latestState || !latestState.currentSong || currentActiveTab === 'player') {
+  const song = latestState?.currentSong;
+  // No Início o cartão aparece sempre; nas outras abas, só com música tocando.
+  if (!latestState || currentActiveTab === 'player' || (!song && currentActiveTab !== 'search')) {
     bar.style.display = 'none';
     return;
   }
   bar.style.display = 'flex';
-  const song = latestState.currentSong;
+  bar.classList.toggle('is-empty', !song);
   const titleEl = document.getElementById('miniPlayerTitle');
   const artistEl = document.getElementById('miniPlayerArtist');
+  const thumbEl = document.getElementById('miniPlayerThumb');
+  const eqEl = document.getElementById('miniPlayerEq');
+  const controlsEl = document.getElementById('miniPlayerControls');
+  if (controlsEl) controlsEl.style.display = song ? '' : 'none';
+  if (!song) {
+    if (titleEl) titleEl.textContent = 'Nada tocando ainda';
+    if (artistEl) artistEl.textContent = 'Peça a primeira música aqui embaixo 👇';
+    if (thumbEl) thumbEl.hidden = true;
+    if (eqEl) eqEl.hidden = false;
+    const miniBar = document.getElementById('topMiniProgressBar');
+    if (miniBar) miniBar.style.width = '0%';
+    return;
+  }
   if (titleEl) titleEl.textContent = song.title;
   if (artistEl) artistEl.textContent = song.artist;
+  if (thumbEl) {
+    if (song.thumbnail && thumbEl.src !== song.thumbnail) thumbEl.src = song.thumbnail;
+    thumbEl.hidden = !song.thumbnail;
+  }
+  if (eqEl) eqEl.hidden = Boolean(song.thumbnail);
 
   const isPlaying = jblModeActive ? !jblVideoEl.paused : !latestState.isPaused;
   const playIcon = document.getElementById('miniIconPlay');
@@ -1355,8 +1392,8 @@ function switchTab(tab) {
   if (q) q.style.display = tab === 'queue' ? 'block' : 'none';
   if (r) r.style.display = tab === 'rank' ? 'block' : 'none';
 
-  document.getElementById('tabBtnPlayer')?.classList.toggle('active', tab === 'player');
-  document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search');
+  // O player completo é parte do Início.
+  document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search' || tab === 'player');
   document.getElementById('tabBtnQueue')?.classList.toggle('active', tab === 'queue');
   document.getElementById('tabBtnRank')?.classList.toggle('active', tab === 'rank');
 
@@ -1450,7 +1487,7 @@ function closeSearchResults() {
   if (resultsBox) {
     resultsBox.innerHTML = `
       <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
-        Pesquise qualquer música ou clipe do <strong>YouTube Music</strong>!<br/>
+        Digite o nome da música ou do artista e toque em <strong>Buscar</strong>!<br/>
         <small>Você pode adicionar quantas quiser (a fila organiza até 2 seguidas por pessoa).</small>
       </div>
     `;
