@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jukebox-cache-v13';
+const CACHE_NAME = 'jukebox-cache-v14';
 const STATIC_ASSETS = [
   '/',
   '/mobile.html',
@@ -17,7 +17,8 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      // 'reload' ignora o cache do navegador e baixa a versão nova de verdade.
+      return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
@@ -50,20 +51,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia Stale-While-Revalidate para o app carregar instantaneamente do cache:
+  // Rede primeiro: com internet, o app sempre abre a versão mais nova.
+  // A cópia guardada só é usada sem internet, para o app ainda abrir.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request, { cache: 'no-cache' }).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+      }
+      return networkResponse;
+    }).catch(() => caches.match(event.request, { ignoreSearch: true }))
   );
 });

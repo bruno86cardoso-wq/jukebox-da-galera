@@ -32,7 +32,10 @@ function createJukebox(options = {}) {
   });
 
   app.use(express.json({ limit: '16kb' }));
-  app.use(express.static(path.join(__dirname, 'public')));
+  // O service worker nunca fica em cache, para o celular perceber logo cada atualização.
+  app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filePath) => { if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache'); }
+  }));
   const PORT = options.port ?? Number(process.env.PORT || 3456);
   const IS_WIN = process.platform === 'win32';
   const YT_DLP_PATH = path.join(__dirname, IS_WIN ? 'yt-dlp.exe' : 'yt-dlp');
