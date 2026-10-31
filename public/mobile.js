@@ -1677,7 +1677,7 @@ async function executeSearch(query) {
           <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
           <div class="song-item-info">
             <div class="song-item-title">${escapeHtml(song.title)}</div>
-            <div class="song-item-sub">${escapeHtml(song.artist)} • ${escapeHtml(song.duration)}</div>
+            <div class="song-item-sub">${escapeHtml(song.artist)}${song.duration && song.duration !== '—' ? ' • ' + escapeHtml(song.duration) : ''}</div>
           </div>
           <button type="button" class="${btnClass}" data-vid="${escapeHtml(song.videoId)}" ${btnDisabled ? 'disabled' : ''} onclick="addSongByIndex(${idx}, this)">
             ${btnLabel}
