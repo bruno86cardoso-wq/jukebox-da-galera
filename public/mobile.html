@@ -310,6 +310,10 @@
           <input id="guestsControlInput" type="checkbox" onchange="setGuestsControl(this.checked)" />
           <span><strong>Galera pode pular e pausar</strong><small>Desligado: só você controla a música.</small></span>
         </label>
+        <label class="switch-row">
+          <input id="autoRadioInput" type="checkbox" checked onchange="setAutoRadio(this.checked)" />
+          <span><strong>📻 Rádio quando a fila acabar</strong><small>Toca músicas parecidas com a última pedida até alguém pedir outra.</small></span>
+        </label>
         <div class="host-buttons-row">
           <button type="button" class="btn-tool" onclick="showSummaryToAll()">📊 Mostrar resumo</button>
           <button type="button" class="btn-tool danger" onclick="endCurrentParty()">🛑 Encerrar festa</button>

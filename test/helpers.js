@@ -48,7 +48,7 @@ async function connect(port, token = randomBytes(32).toString('hex')) {
 
 async function fixture(t, options = {}) {
   const jukebox = createJukebox({ port: 0, bind: '127.0.0.1', tunnel: false, log: () => {},
-    dataDir: null, voteDelaySeconds: 0, media: { resolveStreamUrl: async () => null, serve: (_, res) => res.status(503).end() }, ...options });
+    dataDir: null, voteDelaySeconds: 0, radio: null, media: { resolveStreamUrl: async () => null, serve: (_, res) => res.status(503).end() }, ...options });
   const port = await jukebox.start();
   const clients = [];
   t.after(async () => { await Promise.all(clients.map(c => c.close())); await jukebox.stop(); });

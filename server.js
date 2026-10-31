@@ -7,7 +7,7 @@ const os = require('os');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const { randomBytes } = require('node:crypto');
-const { searchYouTubeMusic, getSearchSuggestions } = require('./lib/catalog');
+const { searchYouTubeMusic, getSearchSuggestions, getRadioSongs } = require('./lib/catalog');
 const { createMedia } = require('./lib/media');
 const { createPersistence } = require('./lib/persistence');
 const { createParty, generateCode, normalizeCode, validCode, validSaved, hashKey } = require('./lib/party');
@@ -143,6 +143,7 @@ function createJukebox(options = {}) {
       () => entry.party.serialize(), validSaved);
     entry.party = createParty({
       code, hostKeyHash, saved, media, voteDelaySeconds: options.voteDelaySeconds,
+      radio: options.radio === undefined ? getRadioSongs : options.radio,
       changed: () => broadcastState(entry),
       emit: (event, payload) => { if (!stopping) io.to(room(code)).emit(event, payload); },
       command: cmd => {

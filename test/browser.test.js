@@ -239,3 +239,15 @@ test('primeiro toque destrava o áudio só no celular que toca o som', async () 
   assert.equal(audio.src, '', 'limpa o silêncio depois');
   assert.equal(audio.paused, true);
 });
+
+test('depois de uma música com erro, a próxima volta para o áudio normal', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  vm.runInContext('ytFallbackActive = true', b.context);
+  const next = state();
+  next.currentSong = { ...next.currentSong, id: 'song2', videoId: 'zyxwvutsrqp' };
+  b.handlers.get('stateUpdate')(next);
+  assert.equal(vm.runInContext('ytFallbackActive', b.context), false);
+  assert.ok(b.elements.get('mobJblAudio').src.includes('/api/audio/zyxwvutsrqp'));
+});

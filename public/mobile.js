@@ -751,11 +751,22 @@ function syncJblPlayer(song) {
   box.style.display = 'block';
   updateJblUi();
 
+  const isNewSong = song.id !== jblCurrentSongId || song.videoId !== jblCurrentVideoId;
+  // O player do YouTube é só reserva da música que falhou: a próxima volta para o áudio normal.
+  if (ytFallbackActive && isNewSong && jblMediaMode !== 'youtube') {
+    ytFallbackActive = false;
+    clearInterval(ytProgressTimer);
+    if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
+      try { mobYtPlayer.stopVideo(); } catch (err) {}
+    }
+    const ytBox = document.getElementById('mobYtFallbackBox');
+    if (ytBox) ytBox.style.display = 'none';
+    jblLoadedMediaMode = null;
+  }
+
   if (ytFallbackActive || jblMediaMode === 'youtube') {
     ytFallbackActive = true;
-    if (song.id !== jblCurrentSongId || song.videoId !== jblCurrentVideoId) {
-      activateYtFallback(song);
-    }
+    if (isNewSong) activateYtFallback(song);
     return;
   }
 
@@ -1083,6 +1094,11 @@ function updateMiniDesafioStatus() {
   const el = document.getElementById('miniPlayerStatus');
   if (!el) return;
   const s = latestState?.currentSong;
+  if (s?.isRadio) {
+    el.textContent = '📻 Rádio · peça uma música e ela entra em seguida!';
+    el.hidden = false;
+    return;
+  }
   if (!s || latestState.mode !== 'desafio') {
     el.hidden = true;
     return;
@@ -1111,6 +1127,8 @@ socket.on('stateUpdate', (state, you) => {
   }
   const guestsInput = document.getElementById('guestsControlInput');
   if (state.settings) guestsInput.checked = Boolean(state.settings.guestsControl);
+  const radioInput = document.getElementById('autoRadioInput');
+  if (radioInput && state.settings) radioInput.checked = state.settings.autoRadio !== false;
   const themeBanner = document.getElementById('themeBanner');
   themeBanner.hidden = !state.theme;
   if (state.theme) themeBanner.innerHTML = `🎨 Rodada temática: <strong>${escapeHtml(state.theme)}</strong>`;
@@ -1201,7 +1219,7 @@ socket.on('stateUpdate', (state, you) => {
     `;
 
     // Área de Votação aparece apenas no Modo Desafio!
-    if (!isDesafio) {
+    if (!isDesafio || s.isRadio) {
       voteArea.style.display = 'none';
       voteClock.update(null);
     } else {
@@ -1804,6 +1822,12 @@ document.getElementById('mobQueueList').addEventListener?.('click', event => {
 // ==========================================
 // ANFITRIÃO: CONTROLES, TEMA E RESUMO
 // ==========================================
+function setAutoRadio(value) {
+  socket.emit('hostAction', { action: 'setSettings', payload: { autoRadio: Boolean(value) } }, result => {
+    if (result?.ok) showToast(value ? '📻 Rádio ligada: quando a fila acabar, toca parecida.' : '🔇 Rádio desligada: quando a fila acabar, fica em silêncio.');
+  });
+}
+
 function setGuestsControl(value) {
   socket.emit('hostAction', { action: 'setSettings', payload: { guestsControl: Boolean(value) } }, result => {
     if (result?.ok) showToast(value ? '🙌 A galera pode pular e pausar.' : '🔒 Só você controla a música agora.');
