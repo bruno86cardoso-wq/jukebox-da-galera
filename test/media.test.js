@@ -118,3 +118,15 @@ test('serve faz fallback para extração local quando relay falha, sem desligar 
   const next = await media.resolveStreamUrl('lmnopqrstuv', 'audio');
   assert.equal(next.url, 'https://dead-tunnel.example.test/api/audio/lmnopqrstuv');
 });
+
+test('pedido da galera passa na frente do preparo antecipado da rádio', () => {
+  const started = [];
+  const media = createMedia('fake', { maxConcurrent: 2, maxPending: 30,
+    run: (file, args, options, done) => started.push(args.at(-1).slice(-11)) });
+  for (const id of ['r1aaaaaaaaa', 'r2aaaaaaaaa', 'r3aaaaaaaaa']) media.resolveStreamUrl(id, 'audio', { background: true });
+  assert.deepEqual(started, ['r1aaaaaaaaa'], 'rádio usa só 1 das 2 vagas');
+  media.resolveStreamUrl('pedidaaaaaa', 'audio');
+  assert.deepEqual(started, ['r1aaaaaaaaa', 'pedidaaaaaa'], 'pedido começa na hora, na vaga livre');
+  media.resolveStreamUrl('r3aaaaaaaaa', 'audio');
+  assert.equal(started.length, 2, 'sem vaga: espera, mas já foi para a frente da fila');
+});
