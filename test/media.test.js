@@ -164,3 +164,21 @@ test('usa o arquivo de cookies quando existe e ignora quando não existe', () =>
     fs.rmSync(path.join(os.tmpdir(), 'jukebox-youtube-cookies.txt'), { force: true });
   }
 });
+
+test('com cookies, troca o cliente "android" (que não aceita login) pelo automático', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const source = path.join(os.tmpdir(), 'teste-cookies-cliente.txt');
+  fs.writeFileSync(source, '# Netscape HTTP Cookie File\n');
+  const calls = [];
+  try {
+    createMedia('fake', { cookiesFile: source, playerClient: 'android', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
+    assert.ok(!calls[0].some(arg => String(arg).includes('player_client=android')));
+    createMedia('fake', { cookiesFile: source, playerClient: 'mweb', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
+    assert.ok(calls[1].includes('youtube:player_client=mweb'), 'mweb aceita login e continua');
+  } finally {
+    fs.rmSync(source, { force: true });
+    fs.rmSync(path.join(os.tmpdir(), 'jukebox-youtube-cookies.txt'), { force: true });
+  }
+});
