@@ -2271,7 +2271,7 @@ function endQueueDrag(event) {
 
 (() => {
   const list = document.getElementById('mobQueueList');
-  if (!list?.addEventListener) return;
+  if (!list?.addEventListener || typeof document.addEventListener !== 'function') return;
   list.addEventListener('pointerdown', startQueueDrag);
   // Mover e soltar valem na tela toda: o dedo pode sair de cima da lista.
   document.addEventListener('pointermove', moveQueueDrag, { passive: false });
