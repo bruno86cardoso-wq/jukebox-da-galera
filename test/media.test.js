@@ -167,7 +167,7 @@ test('usa o arquivo de cookies quando existe e ignora quando não existe', () =>
   }
 });
 
-test('com cookies, troca o cliente "android" (que não aceita login) pelo web', () => {
+test('com cookies, troca o cliente "android" (que não aceita login) pelo automático', () => {
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
@@ -176,7 +176,8 @@ test('com cookies, troca o cliente "android" (que não aceita login) pelo web', 
   const calls = [];
   try {
     createMedia('fake', { cookiesFile: source, playerClient: 'android', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
-    assert.ok(calls[0].includes('youtube:player_client=web;skip=hls,dash'), 'com cookies usa o cliente web');
+    assert.ok(calls[0].includes('youtube:skip=hls,dash'), 'com cookies usa o automático');
+    assert.ok(!calls[0].some(arg => String(arg).includes('player_client=')), 'sem forçar cliente');
     createMedia('fake', { cookiesFile: source, playerClient: 'mweb', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
     assert.ok(calls[1].includes('youtube:player_client=mweb;skip=hls,dash'), 'mweb aceita login e continua');
   } finally {
