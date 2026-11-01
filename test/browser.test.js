@@ -299,3 +299,15 @@ test('troca de música não avisa "pausado" para a galera; pausa de verdade avis
   audio.dispatch('pause');
   assert.equal(pausedSync().length, 1, 'pausa de verdade é avisada');
 });
+
+test('pré-aquece a próxima música uma vez só, não a cada atualização da festa', async () => {
+  const b = browser('mobile');
+  const fetched = [];
+  b.context.fetch = async url => { fetched.push(url); return { ok: true, json: async () => ({}) }; };
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  const s = state();
+  s.queue = [{ ...s.currentSong, id: 'next', videoId: 'nextsongabc' }];
+  for (let i = 0; i < 5; i++) b.handlers.get('stateUpdate')(s);
+  assert.equal(fetched.filter(url => String(url).includes('nextsongabc')).length, 1);
+});

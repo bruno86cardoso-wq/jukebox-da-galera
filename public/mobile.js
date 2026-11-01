@@ -77,6 +77,7 @@ function formatTime(seconds) {
 
 let jblSeekDragging = false;
 let jblSwitchingSong = false;
+let lastPrefetchedVideoId = null;
 
 function onJblTimeUpdate() {
   const el = jblVideoEl;
@@ -1255,10 +1256,11 @@ socket.on('stateUpdate', (state, you) => {
   // Pré-aquece a próxima música da fila para tocar sem nenhum delay!
   // Fila vazia: a próxima é a da rádio que já está engatilhada.
   const upcoming = state.queue?.[0] || state.upcomingRadio;
-  if (upcoming && jblModeActive) {
-    const nextSong = upcoming;
-    fetch(`/api/audio/${nextSong.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
-    preloadNextSongAudio(nextSong.videoId);
+  // Pré-aquece a próxima só uma vez por música (antes repetia a cada voto ou entrada na festa).
+  if (upcoming && jblModeActive && upcoming.videoId !== lastPrefetchedVideoId) {
+    lastPrefetchedVideoId = upcoming.videoId;
+    fetch(`/api/audio/${upcoming.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
+    preloadNextSongAudio(upcoming.videoId);
   }
 
   document.getElementById('desafioStatsBox').style.display = isDesafio ? 'flex' : 'none';
