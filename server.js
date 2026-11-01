@@ -253,31 +253,10 @@ function createJukebox(options = {}) {
   });
   app.get('/api/audio/:videoId', httpLimit, (req, res) => media.serve(req, res, 'audio'));
   app.get('/api/stream/:videoId', httpLimit, (req, res) => media.serve(req, res, 'video'));
+  // Diagnóstico do áudio com a mesma configuração usada nas músicas (sem links nem dados da conta).
   app.get('/api/debug-media/:videoId', httpLimit, async (req, res) => {
-    try {
-      const { videoId } = req.params;
-      const resolved = await media.resolveStreamUrl(videoId, 'audio');
-      if (!resolved) {
-        const { execFile } = require('node:child_process');
-        return execFile(YT_DLP_PATH, ['--no-playlist', '--no-warnings', '-g', '-f', 'bestaudio/best', `https://www.youtube.com/watch?v=${videoId}`], { timeout: 15000 }, (err, stdout, stderr) => {
-          res.json({ ok: false, error: 'resolveStreamUrl returned null', err: err?.message, stdout: stdout?.slice(0, 300), stderr: stderr?.slice(0, 500) });
-        });
-      }
-      const client = resolved.url.startsWith('https:') ? https : http;
-      client.get(resolved.url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }, upstreamRes => {
-        upstreamRes.resume();
-        res.json({
-          ok: true,
-          upstreamStatus: upstreamRes.statusCode,
-          upstreamHeaders: upstreamRes.headers,
-          urlSample: resolved.url.slice(0, 150)
-        });
-      }).on('error', err => {
-        res.json({ ok: false, upstreamError: err.message });
-      });
-    } catch (e) {
-      res.json({ ok: false, catchError: e.message });
-    }
+    if (typeof media.explain !== 'function') return res.json({ ok: false, reason: 'diagnóstico indisponível' });
+    res.json({ ...(await media.explain(req.params.videoId)), relay: Boolean(media.getRelayOrigin?.()) });
   });
 
   // Capa servida pelo próprio servidor para o telão poder ler as cores (canvas exige mesma origem).

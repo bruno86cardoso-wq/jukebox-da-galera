@@ -6,3 +6,5 @@ test
 *.log
 yt-dlp
 yt-dlp.exe
+
+*cookies*.txt

@@ -4,3 +4,6 @@ yt-dlp.exe
 .env
 data/
 *.log
+
+# Cookies de conta do YouTube nunca vão para o GitHub
+*cookies*.txt

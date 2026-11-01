@@ -144,3 +144,23 @@ test('túnel registrado por um PC expira se o PC parar de renovar', async () => 
   media.resolveStreamUrl('lmnopqrstuv');
   assert.equal(started.length, 1, 'volta a buscar o áudio direto');
 });
+
+test('usa o arquivo de cookies quando existe e ignora quando não existe', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const source = path.join(os.tmpdir(), 'teste-cookies-origem.txt');
+  fs.writeFileSync(source, '# Netscape HTTP Cookie File\n');
+  const calls = [];
+  const run = (file, args, options, done) => calls.push(args);
+  try {
+    createMedia('fake', { cookiesFile: source, run }).resolveStreamUrl('abcdefghijk');
+    assert.ok(calls[0].includes('--cookies'), 'com arquivo: usa cookies');
+    assert.notEqual(calls[0][calls[0].indexOf('--cookies') + 1], source, 'usa uma cópia gravável, não o original');
+    createMedia('fake', { cookiesFile: path.join(os.tmpdir(), 'nao-existe.txt'), run }).resolveStreamUrl('lmnopqrstuv');
+    assert.ok(!calls[1].includes('--cookies'), 'sem arquivo: segue sem cookies');
+  } finally {
+    fs.rmSync(source, { force: true });
+    fs.rmSync(path.join(os.tmpdir(), 'jukebox-youtube-cookies.txt'), { force: true });
+  }
+});
