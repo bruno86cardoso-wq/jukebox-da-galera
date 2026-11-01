@@ -70,7 +70,7 @@ test('cliente de reprodução é selecionado com argumentos separados e lista pe
     done(null, 'https://example.test/audio');
   } });
   assert.ok(await media.resolveStreamUrl('abcdefghijk'));
-  assert.deepEqual(args.slice(0, 2), ['--extractor-args', 'youtube:player_client=web_embedded']);
+  assert.deepEqual(args.slice(0, 2), ['--extractor-args', 'youtube:player_client=web_embedded;skip=hls,dash']);
   assert.throws(() => createMedia('fake', { playerClient: 'arbitrary;command' }));
 });
 
@@ -82,7 +82,7 @@ test('cliente mweb usa plugin local e permite o tempo inicial de validação', a
       done(null, 'https://example.test/audio');
     } });
   assert.ok(await media.resolveStreamUrl('abcdefghijk'));
-  assert.deepEqual(captured.args.slice(0, 4), ['--plugin-dirs', '/opt/ytdlp-plugins', '--extractor-args', 'youtube:player_client=mweb']);
+  assert.deepEqual(captured.args.slice(0, 4), ['--plugin-dirs', '/opt/ytdlp-plugins', '--extractor-args', 'youtube:player_client=mweb;skip=hls,dash']);
   assert.equal(captured.options.timeout, 60000);
 });
 
@@ -167,7 +167,7 @@ test('usa o arquivo de cookies quando existe e ignora quando não existe', () =>
   }
 });
 
-test('com cookies, troca o cliente "android" (que não aceita login) pelo automático', () => {
+test('com cookies, troca o cliente "android" (que não aceita login) pelo web', () => {
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
@@ -176,9 +176,9 @@ test('com cookies, troca o cliente "android" (que não aceita login) pelo autom�
   const calls = [];
   try {
     createMedia('fake', { cookiesFile: source, playerClient: 'android', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
-    assert.ok(!calls[0].some(arg => String(arg).includes('player_client=android')));
+    assert.ok(calls[0].includes('youtube:player_client=web;skip=hls,dash'), 'com cookies usa o cliente web');
     createMedia('fake', { cookiesFile: source, playerClient: 'mweb', run: (f, args) => calls.push(args) }).resolveStreamUrl('abcdefghijk');
-    assert.ok(calls[1].includes('youtube:player_client=mweb'), 'mweb aceita login e continua');
+    assert.ok(calls[1].includes('youtube:player_client=mweb;skip=hls,dash'), 'mweb aceita login e continua');
   } finally {
     fs.rmSync(source, { force: true });
     fs.rmSync(path.join(os.tmpdir(), 'jukebox-youtube-cookies.txt'), { force: true });
