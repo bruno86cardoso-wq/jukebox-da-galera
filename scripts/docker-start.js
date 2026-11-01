@@ -45,7 +45,9 @@ function ping() {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   if (stopping) return;
-  app = spawn(process.execPath, ['server.js'], { cwd: '/app', stdio: 'inherit' });
+  // O Node não enxerga o limite de memória do servidor (512 MB) e deixa a memória crescer sem limpar;
+  // com um teto explícito ele limpa a tempo e sobra espaço para o yt-dlp.
+  app = spawn(process.execPath, ['--max-old-space-size=224', 'server.js'], { cwd: '/app', stdio: 'inherit' });
   app.on('error', () => stop(1));
   app.on('exit', code => stop(code || 0));
 })().catch(error => { console.error(error.message); stop(1); });

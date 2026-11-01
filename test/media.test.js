@@ -223,3 +223,18 @@ test('áudio usa primeiro o caminho rápido e só chama o yt-dlp se ele falhar',
   await media.resolveStreamUrl('01234567890', 'video');
   assert.equal(extractor.length, 2, 'vídeo continua no yt-dlp');
 });
+
+test('caminho rápido não espera na fila do yt-dlp (um yt-dlp por vez)', async () => {
+  const started = [];
+  const media = createMedia('fake', {
+    maxConcurrent: 1,
+    fastResolver: async id => (id === 'rapidaaaaaa' ? { url: 'https://rapido.example.test/x' } : null),
+    run: (file, args) => started.push(args.at(-1).slice(-11)) // yt-dlp "travado", ocupando a única vaga
+  });
+  media.resolveStreamUrl('lentaaaaaaa');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, ['lentaaaaaaa'], 'yt-dlp ocupando a única vaga');
+  const quick = await media.resolveStreamUrl('rapidaaaaaa');
+  assert.equal(quick.url, 'https://rapido.example.test/x', 'a rápida sai mesmo com o yt-dlp ocupado');
+  assert.equal(started.length, 1);
+});
