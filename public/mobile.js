@@ -1880,63 +1880,29 @@ async function executeSearch(query) {
       return;
     }
 
-    const queueVideoIds = new Set((latestState?.queue || []).map(item => item.videoId));
-    const currentVideoId = latestState?.currentSong?.videoId;
-
     const listHtml = currentSearchResults.map((song, idx) => {
-      const inQueue = queueVideoIds.has(song.videoId);
-      const isPlaying = currentVideoId && currentVideoId === song.videoId;
-
-      let btnLabel = '+ Fila';
-      let btnDisabled = false;
-      let btnClass = 'btn-add';
-
-      if (inQueue) {
-        btnLabel = '✓ Na Fila';
-        btnDisabled = true;
-        btnClass = 'btn-add in-queue';
-      } else if (isPlaying) {
-        btnLabel = '▶ Tocando';
-        btnDisabled = true;
-        btnClass = 'btn-add is-playing';
-      }
-
       const heading = searchArtist && idx === 0
         ? `<div class="search-section-title">⭐ Mais tocadas de ${escapeHtml(searchArtist)}</div>`
         : searchArtist && !song.hit && currentSearchResults[idx - 1]?.hit
           ? '<div class="search-section-title other">Outros resultados</div>'
           : '';
-      const rank = song.hit ? idx + 1 : 0;
-      const plays = song.plays ? `<div class="song-item-plays">${rank && rank <= 3 ? '🔥' : '👁'} ${escapeHtml(song.plays)} de visualizações</div>` : '';
-
-      return `${heading}
-        <div class="song-item${rank && rank <= 3 ? ' top-hit' : ''}">
-          <div class="song-item-cover">
-            <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
-            ${rank ? `<span class="song-rank">${rank}º</span>` : ''}
-          </div>
-          <div class="song-item-info">
-            <div class="song-item-title">${escapeHtml(song.title)}</div>
-            <div class="song-item-sub">${escapeHtml(song.artist)}${song.duration && song.duration !== '—' ? ' • ' + escapeHtml(song.duration) : ''}</div>
-            ${plays}
-          </div>
-          <button type="button" class="${btnClass}" data-vid="${escapeHtml(song.videoId)}" ${btnDisabled ? 'disabled' : ''} onclick="addSongByIndex(${idx}, this)">
-            ${btnLabel}
-          </button>
-        </div>
-      `;
+      return heading + searchItemHtml(song, idx, song.hit ? idx + 1 : 0);
     }).join('');
 
+    searchPaging = { query, next: '', started: false, controller };
     resultsBox.innerHTML = `
       <div class="search-results-header">
         <span class="search-results-count">${currentSearchResults.length} músicas encontradas</span>
         <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
       </div>
-      ${listHtml}
+      <div id="searchList" class="results-list">${listHtml}</div>
+      <button type="button" id="btnSearchMore" class="btn-search-more" onclick="loadMoreSongs()">➕ Ver mais músicas</button>
+      <div id="similarBox" class="results-list"></div>
       <div style="text-align:center; padding: 14px 0 6px;">
         <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
       </div>
     `;
+    loadSimilarSongs(currentSearchResults[0], controller);
   } catch (err) {
     if (err.name === 'AbortError') return;
     resultsBox.innerHTML = `
@@ -1947,6 +1913,109 @@ async function executeSearch(query) {
       <div style="text-align:center; padding:24px; color:#ef4444;">Erro ao buscar músicas. Tente novamente.</div>
     `;
   }
+}
+
+// Uma música na lista da busca (resultado, "ver mais" ou parecida). rank > 0 mostra o selo 1º, 2º...
+function searchItemHtml(song, idx, rank = 0) {
+  const inQueue = (latestState?.queue || []).some(item => item.videoId === song.videoId);
+  const isPlaying = latestState?.currentSong?.videoId === song.videoId;
+  const btnLabel = inQueue ? '✓ Na Fila' : isPlaying ? '▶ Tocando' : '+ Fila';
+  const btnClass = inQueue ? 'btn-add in-queue' : isPlaying ? 'btn-add is-playing' : 'btn-add';
+  const plays = song.plays ? `<div class="song-item-plays">${rank && rank <= 3 ? '🔥' : '👁'} ${escapeHtml(song.plays)} de visualizações</div>` : '';
+  return `
+    <div class="song-item${rank && rank <= 3 ? ' top-hit' : ''}">
+      <div class="song-item-cover">
+        <img src="${escapeHtml(song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/mqdefault.jpg`)}" alt="Capa" loading="lazy" />
+        ${rank ? `<span class="song-rank">${rank}º</span>` : ''}
+      </div>
+      <div class="song-item-info">
+        <div class="song-item-title">${escapeHtml(song.title)}</div>
+        <div class="song-item-sub">${escapeHtml(song.artist)}${song.duration && song.duration !== '—' ? ' • ' + escapeHtml(song.duration) : ''}</div>
+        ${plays}
+      </div>
+      <button type="button" class="${btnClass}" data-vid="${escapeHtml(song.videoId)}" ${inQueue || isPlaying ? 'disabled' : ''} onclick="addSongByIndex(${idx}, this)">
+        ${btnLabel}
+      </button>
+    </div>
+  `;
+}
+
+// Mesma música já na lista (mesmo vídeo, ou mesmo nome e cantor em outro vídeo).
+function songKey(song) {
+  return `${song.title}|${song.artist}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+function newSongsOnly(list) {
+  const ids = new Set(currentSearchResults.map(song => song.videoId));
+  const keys = new Set(currentSearchResults.map(songKey));
+  return list.filter(song => {
+    if (!song?.videoId || ids.has(song.videoId) || keys.has(songKey(song))) return false;
+    ids.add(song.videoId);
+    keys.add(songKey(song));
+    return true;
+  });
+}
+
+// Coloca músicas no fim da lista da busca e devolve o HTML delas.
+function appendSearchSongs(songs) {
+  return songs.map(song => {
+    currentSearchResults.push(song);
+    return searchItemHtml(song, currentSearchResults.length - 1);
+  }).join('');
+}
+
+let searchPaging = null;
+async function loadMoreSongs() {
+  const paging = searchPaging;
+  const button = document.getElementById('btnSearchMore');
+  if (!paging || !button || button.disabled) return;
+  button.disabled = true;
+  button.textContent = '⏳ Buscando mais...';
+  try {
+    let added = [];
+    // Pula páginas que só repetem o que já está na tela (no máximo 3 de uma vez).
+    for (let tries = 0; tries < 3 && !added.length; tries++) {
+      if (paging.started && !paging.next) break;
+      const params = new URLSearchParams({ q: paging.query });
+      if (paging.next) params.set('next', paging.next);
+      const res = await fetch(`/api/search/more?${params}`, { signal: paging.controller.signal });
+      const data = res.ok ? await res.json() : { results: [], next: '' };
+      paging.started = true;
+      paging.next = data.next || '';
+      added = newSongsOnly(data.results || []);
+    }
+    if (paging !== searchPaging) return;
+    if (added.length) {
+      document.getElementById('searchList')?.insertAdjacentHTML('beforeend',
+        '<div class="search-section-title other">Mais músicas</div>' + appendSearchSongs(added));
+      const count = document.querySelector('#searchResults .search-results-count');
+      if (count) count.textContent = `${currentSearchResults.length} músicas encontradas`;
+    }
+    if (!paging.next) {
+      button.remove();
+      if (!added.length) showToast('Não achei mais músicas para essa busca.');
+      return;
+    }
+    button.disabled = false;
+    button.textContent = '➕ Ver mais músicas';
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    button.disabled = false;
+    button.textContent = '➕ Ver mais músicas';
+    showToast('Não consegui buscar mais agora. Tente de novo.');
+  }
+}
+
+// Embaixo da busca: músicas parecidas com a primeira (mesma lista que a rádio usa).
+async function loadSimilarSongs(seed, controller) {
+  const box = document.getElementById('similarBox');
+  if (!seed?.videoId || !box) return;
+  try {
+    const res = await fetch(`/api/similar/${encodeURIComponent(seed.videoId)}`, { signal: controller.signal });
+    if (!res.ok || controller !== searchController) return;
+    const similar = newSongsOnly((await res.json()).results || []).slice(0, 10);
+    if (!similar.length || !document.body.contains(box)) return;
+    box.innerHTML = `<div class="search-section-title similar">🎶 Parecidas com "${escapeHtml(seed.title)}"</div>` + appendSearchSongs(similar);
+  } catch {}
 }
 
 function addSongByIndex(idx, btnEl) {

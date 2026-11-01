@@ -7,7 +7,7 @@ const os = require('os');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const { randomBytes } = require('node:crypto');
-const { searchYouTubeMusic, getSearchSuggestions, getRadioSongs } = require('./lib/catalog');
+const { searchYouTubeMusic, searchMoreSongs, getSearchSuggestions, getRadioSongs } = require('./lib/catalog');
 const { createMedia } = require('./lib/media');
 const { createPersistence } = require('./lib/persistence');
 const { createParty, generateCode, normalizeCode, validCode, validSaved, hashKey } = require('./lib/party');
@@ -316,6 +316,30 @@ function createJukebox(options = {}) {
       res.json({ results, artist: results.topArtist || '' });
     } catch (err) {
       res.status(500).json({ error: 'Erro na busca do YouTube Music', details: err.message });
+    }
+  });
+
+  // "Ver mais músicas": próxima página da busca (aba Músicas do YouTube Music).
+  app.get('/api/search/more', httpLimit, async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const next = typeof req.query.next === 'string' ? req.query.next : '';
+    if (!q || q.length > 200 || next.length > 3000 || !/^[A-Za-z0-9_%=-]*$/.test(next)) return res.status(400).json({ error: 'Busca inválida.' });
+    try {
+      res.json(await searchMoreSongs(q, next));
+    } catch {
+      res.json({ results: [], next: '' });
+    }
+  });
+
+  // Músicas parecidas com a primeira da busca (mesma lista que a rádio usa).
+  app.get('/api/similar/:videoId', httpLimit, async (req, res) => {
+    if (!validVideoId(req.params.videoId)) return res.status(400).json({ error: 'Vídeo inválido.' });
+    try {
+      const songs = (await getRadioSongs(req.params.videoId)).slice(0, 12)
+        .map(song => ({ ...song, thumbnail: song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/mqdefault.jpg` }));
+      res.json({ results: songs });
+    } catch {
+      res.json({ results: [] });
     }
   });
 

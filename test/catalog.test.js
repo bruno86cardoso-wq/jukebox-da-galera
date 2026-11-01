@@ -55,3 +55,18 @@ test('busca por artista: os maiores sucessos dele vêm primeiro', () => {
   assert.deepEqual(ranked.map(s => s.title), ['Billie Jean', 'Thriller', 'Bad', 'Live']);
   assert.deepEqual(ranked.map(s => !!s.hit), [true, true, true, false]);
 });
+
+test('ver mais músicas: lê a página seguinte e o código da próxima', () => {
+  const { parseMoreSongs } = require('../lib/catalog');
+  const cols = (...texts) => texts.map(t => ({ musicResponsiveListItemFlexColumnRenderer: { text: { runs: t.split(' • ').flatMap((part, i) => (i ? [{ text: ' • ' }, { text: part }] : [{ text: part }])) } } }));
+  const item = (videoId, title, subtitle, plays) => ({ musicResponsiveListItemRenderer: { playlistItemData: { videoId }, flexColumns: cols(title, subtitle, plays) } });
+  const page = parseMoreSongs({ continuationContents: { musicShelfContinuation: {
+    contents: [
+      item('aaaaaaaaaaa', 'Hold My Hand', 'Michael Jackson • Michael • 3:33', 'Tocou 191 mi vezes'),
+      item('bbbbbbbbbbb', 'Vinheta', 'Michael Jackson • 0:30', '')
+    ],
+    continuations: [{ nextContinuationData: { continuation: 'TOKEN2' } }]
+  } } });
+  assert.deepEqual(page.results.map(s => [s.title, s.artist, s.duration, s.plays]), [['Hold My Hand', 'Michael Jackson', '3:33', '191 mi']]);
+  assert.equal(page.next, 'TOKEN2');
+});
