@@ -130,3 +130,17 @@ test('pedido da galera passa na frente do preparo antecipado da rádio', () => {
   media.resolveStreamUrl('r3aaaaaaaaa', 'audio');
   assert.equal(started.length, 2, 'sem vaga: espera, mas já foi para a frente da fila');
 });
+
+test('túnel registrado por um PC expira se o PC parar de renovar', async () => {
+  let now = 1_000_000;
+  const started = [];
+  const media = createMedia('fake', { now: () => now, run: (file, args, options, done) => started.push(done) });
+  assert.equal(media.setRelayOrigin('https://festa-do-pc.trycloudflare.com'), true);
+  const viaPc = await media.resolveStreamUrl('abcdefghijk');
+  assert.ok(viaPc.url.startsWith('https://festa-do-pc.trycloudflare.com'), 'com o PC renovando, usa o túnel');
+  assert.equal(started.length, 0);
+  now += 3 * 60 * 1000;
+  assert.equal(media.getRelayOrigin(), null, 'PC parou de renovar: túnel descartado');
+  media.resolveStreamUrl('lmnopqrstuv');
+  assert.equal(started.length, 1, 'volta a buscar o áudio direto');
+});
