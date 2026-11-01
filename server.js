@@ -57,8 +57,12 @@ function createJukebox(options = {}) {
 
   // Áudio: primeiro o YouTube.js (rápido, dentro do app); se o YouTube recusar, o yt-dlp. YTJS_ENGINE=0 desliga.
   const cookiesFile = process.env.YTDLP_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt';
-  const fastResolver = process.env.YTJS_ENGINE === '0' ? null
-    : videoId => require('./lib/youtubei').fastAudio(videoId, { cookiesFile });
+  // Se o vídeo estiver bloqueado, procura outra versão da mesma música antes de cair no yt-dlp.
+  const fastResolver = process.env.YTJS_ENGINE === '0' ? null : async videoId => {
+    const youtubei = require('./lib/youtubei');
+    return (await youtubei.fastAudio(videoId, { cookiesFile }).catch(() => null))
+      || youtubei.findAlternative(videoId, { cookiesFile, search: searchYouTubeMusic }).catch(() => null);
+  };
   // Com o caminho rápido, só um yt-dlp por vez: ele é o que mais gasta memória (limite de 512 MB).
   const media = options.media || createMedia(YT_DLP_PATH, { fastResolver, maxConcurrent: fastResolver ? 1 : 2 });
 
