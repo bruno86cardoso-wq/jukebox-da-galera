@@ -311,3 +311,44 @@ test('pré-aquece a próxima música uma vez só, não a cada atualização da f
   for (let i = 0; i < 5; i++) b.handlers.get('stateUpdate')(s);
   assert.equal(fetched.filter(url => String(url).includes('nextsongabc')).length, 1);
 });
+
+test('música acaba no tempo real mesmo se o player achar que ela é mais longa', async () => {
+  const b = browser('mobile');
+  const s = state();
+  s.currentSong.duration = '3:23';
+  b.handlers.get('stateUpdate')(s);
+  await vm.runInContext('toggleJblMode()', b.context);
+  const { sent } = spySocket(b);
+  const audio = b.elements.get('mobJblAudio');
+  audio.duration = 260; // o iPhone calculou errado
+  audio.currentTime = 200;
+  audio.dispatch('timeupdate');
+  assert.equal(sent.filter(m => m.data?.action === 'songEnded').length, 0, 'ainda tocando');
+  assert.equal(b.elements.get('playerTotalTime').textContent, '3:23', 'mostra a duração real');
+  audio.currentTime = 204;
+  audio.dispatch('timeupdate');
+  audio.dispatch('timeupdate');
+  audio.dispatch('ended');
+  assert.equal(sent.filter(m => m.data?.action === 'songEnded').length, 1, 'avisa o fim uma vez só');
+});
+
+test('pular no celular do som já troca o áudio no toque e não recomeça quando o servidor confirma', async () => {
+  const b = browser('mobile');
+  const s = state();
+  const next = { ...s.currentSong, id: 'next', videoId: 'proximaabcd' };
+  s.queue = [next];
+  b.handlers.get('stateUpdate')(s);
+  await vm.runInContext('toggleJblMode()', b.context);
+  spySocket(b);
+  const audio = b.elements.get('mobJblAudio');
+  vm.runInContext("remoteControl('skipSong')", b.context);
+  assert.ok(audio.src.endsWith('/api/audio/proximaabcd'), 'troca no toque');
+  assert.equal(audio.paused, false, 'play no toque');
+  audio.currentTime = 1.5;
+  const confirmed = state();
+  confirmed.currentSong = next;
+  confirmed.queue = [];
+  b.handlers.get('stateUpdate')(confirmed);
+  assert.equal(audio.currentTime, 1.5, 'não recomeça do zero');
+  assert.equal(vm.runInContext('jblCurrentSongId', b.context), 'next');
+});

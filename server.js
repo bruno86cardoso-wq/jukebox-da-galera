@@ -154,6 +154,8 @@ function createJukebox(options = {}) {
     entry.party = createParty({
       code, hostKeyHash, saved, media, voteDelaySeconds: options.voteDelaySeconds,
       radio: options.radio === undefined ? getRadioSongs : options.radio,
+      lookupDuration: options.lookupDuration !== undefined ? options.lookupDuration
+        : (process.env.YTJS_ENGINE === '0' ? null : videoId => require('./lib/youtubei').videoDuration(videoId, { cookiesFile })),
       changed: () => broadcastState(entry),
       emit: (event, payload) => { if (!stopping) io.to(room(code)).emit(event, payload); },
       command: cmd => {

@@ -121,3 +121,14 @@ test('rádio deixa 5 engatilhadas: pular entra na hora e repõe o estoque', asyn
   }
   assert.ok(calls <= 12, 'busca a rádio de novo só para repor');
 });
+
+test('duração exata do YouTube substitui a da busca (fila e música tocando)', async () => {
+  const party = createParty({ code: 'TEST', hostKeyHash: 'x', media: null, lookupDuration: async id => (id === 'aaaaaaaaaaa' ? 203 : 3725) });
+  party.join('ana', 'Ana');
+  party.addSong('ana', { videoId: 'aaaaaaaaaaa', title: 'Levitating', artist: 'Dua Lipa', duration: '' });
+  party.addSong('ana', { videoId: 'bbbbbbbbbbb', title: 'Longa', artist: 'X', duration: '3:00' });
+  await new Promise(resolve => setImmediate(resolve));
+  const st = party.publicState({});
+  assert.equal(st.currentSong.duration, '3:23');
+  assert.equal(st.queue[0].duration, '1:02:05');
+});

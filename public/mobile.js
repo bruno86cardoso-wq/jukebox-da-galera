@@ -79,11 +79,23 @@ let jblSeekDragging = false;
 let jblSwitchingSong = false;
 let lastPrefetchedVideoId = null;
 
+// Duração real da música (informada pelo servidor). O iPhone às vezes calcula a duração do áudio
+// maior do que é e a música "continua" em silêncio; com a real, o app sabe quando ela acabou.
+function knownDuration() {
+  const seconds = parseDurationToSeconds(latestState?.currentSong?.duration);
+  return seconds > 0 && latestState?.currentSong?.videoId === jblCurrentVideoId ? seconds : 0;
+}
+
 function onJblTimeUpdate() {
   const el = jblVideoEl;
   if (!el || jblSeekDragging) return;
   const current = el.currentTime || 0;
-  const total = el.duration || 0;
+  const real = knownDuration();
+  const total = real || el.duration || 0;
+  // Passou do fim real: a música acabou (mesmo que o player ache que ainda falta).
+  if (real && current >= real + 0.5 && jblModeActive && jblCurrentSongId && !el.paused) {
+    reportSongEnded(jblCurrentSongId);
+  }
   if (total > 0) {
     const pct = Math.min(100, Math.max(0, (current / total) * 100));
     const bar = document.getElementById('playerProgressBar');
@@ -110,7 +122,7 @@ function seekRatioFromEvent(e) {
 
 function seekTotalSeconds() {
   if (ytFallbackActive && mobYtPlayer && typeof mobYtPlayer.getDuration === 'function') return mobYtPlayer.getDuration() || 0;
-  return jblVideoEl?.duration || 0;
+  return knownDuration() || jblVideoEl?.duration || 0;
 }
 
 // Mostra a bolinha e o tempo enquanto arrasta, sem pular a música a cada movimento.
@@ -168,8 +180,9 @@ function seekJblPlayer(e, presetRatio) {
   }
 
   const el = jblVideoEl;
-  if (!el || !el.duration) return;
-  el.currentTime = ratio * el.duration;
+  const total = seekTotalSeconds();
+  if (!el || !total) return;
+  el.currentTime = ratio * total;
   onJblTimeUpdate();
 }
 
@@ -357,12 +370,15 @@ for (const element of [jblAudioEl]) {
 
 // Sem conexão, guarda o fim da música e avisa o servidor quando reconectar.
 let pendingEndedSongId = null;
+let lastEndedSongId = null;
 function reportSongEnded(songId) {
   if (!songId) return;
   if (!socket.connected) {
     pendingEndedSongId = songId;
     return;
   }
+  if (songId === lastEndedSongId) return; // o fim pode ser avisado pelo relógio e pelo player
+  lastEndedSongId = songId;
   socket.emit('hostAction', { action: 'songEnded', payload: { songId } });
 }
 
@@ -830,6 +846,14 @@ function syncJblPlayer(song) {
   if (ytFallbackActive || jblMediaMode === 'youtube') {
     ytFallbackActive = true;
     if (isNewSong) activateYtFallback(song);
+    return;
+  }
+
+  // Troca local já carregou o áudio desta música (pulo no celular do som): só registra, sem recomeçar.
+  if (song.id !== jblCurrentSongId && song.videoId === jblCurrentVideoId && jblLoadedMediaMode === jblMediaMode &&
+      String(jblAudioEl.src || '').endsWith(`/api/audio/${song.videoId}`)) {
+    jblCurrentSongId = song.id;
+    updateMediaSession(song);
     return;
   }
 
@@ -1597,6 +1621,22 @@ socket.on('songVetoed', (info) => {
   showToast(`💣 MÚSICA DERRUBADA! A galera vetou "${info?.title || 'a música'}"!`);
 });
 
+// Pular no próprio celular do som: já troca o áudio e dá play dentro do toque (o iPhone só deixa
+// o som começar num toque). Quando o servidor confirmar a próxima, o áudio já está tocando.
+function startNextLocally() {
+  if (!jblModeActive || ytFallbackActive || !jblAudioEl) return;
+  const next = latestState?.queue?.[0] || latestState?.upcomingRadio;
+  if (!next?.videoId || next.videoId === jblCurrentVideoId) return;
+  jblSwitchingSong = true;
+  jblRecovery.reset();
+  jblCurrentVideoId = next.videoId;
+  jblLoadedMediaMode = jblMediaMode;
+  jblAudioEl.src = `/api/audio/${next.videoId}`;
+  try { jblAudioEl.load(); } catch (e) {}
+  const attempt = jblAudioEl.play();
+  if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {});
+}
+
 function remoteControl(action) {
   try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
   if (lastYou && !lastYou.canControl) {
@@ -1610,6 +1650,7 @@ function remoteControl(action) {
     else { jblSwitchingSong = false; jblVideoEl.pause(); }
     return;
   }
+  if (action === 'skipSong') startNextLocally();
   socket.emit('hostAction', { action });
 }
 
