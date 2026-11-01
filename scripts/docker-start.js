@@ -1,11 +1,11 @@
 const { spawn } = require('node:child_process');
 const http = require('node:http');
 
-// O provedor de token (bgutil) aceita apenas conexões internas ao contêiner. Os modos "web" do YouTube
-// exigem esse token para o link de áudio tocar; sem ele, parte das músicas é recusada (403).
-// Liga sempre que estiver instalado; YTDLP_TOKEN_PROVIDER=0 desliga.
+// O provedor de token (bgutil) aceita apenas conexões internas ao contêiner. Ele faz algumas músicas
+// tocarem nos modos "web", mas junto com o app e o yt-dlp passa dos 512 MB do plano Starter e o servidor
+// cai ao preparar uma música. Por isso fica desligado: YTDLP_TOKEN_PROVIDER=1 liga (só com mais memória).
 const fs = require('node:fs');
-const useProvider = process.env.YTDLP_TOKEN_PROVIDER !== '0' && fs.existsSync('/opt/token-provider/build/main.js');
+const useProvider = process.env.YTDLP_TOKEN_PROVIDER === '1' && fs.existsSync('/opt/token-provider/build/main.js');
 const provider = useProvider ? spawn(process.execPath,
   ['--max-old-space-size=192', '/opt/token-provider/build/main.js', '--host', '127.0.0.1', '--port', '4416'],
   { cwd: '/opt/token-provider', stdio: 'inherit' }) : null;
