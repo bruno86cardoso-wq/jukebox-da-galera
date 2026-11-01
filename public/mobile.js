@@ -1181,7 +1181,7 @@ function updateMiniDesafioStatus() {
   if (!el) return;
   const s = latestState?.currentSong;
   if (s?.isRadio) {
-    el.textContent = '📻 Rádio · peça uma música e ela entra em seguida!';
+    el.textContent = '📻 Tocando pela rádio';
     el.hidden = false;
     return;
   }
