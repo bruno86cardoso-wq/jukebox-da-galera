@@ -76,6 +76,7 @@ function formatTime(seconds) {
 }
 
 let jblSeekDragging = false;
+let jblSwitchingSong = false;
 
 function onJblTimeUpdate() {
   const el = jblVideoEl;
@@ -189,6 +190,7 @@ function toggleJblPlayPause() {
   if (jblVideoEl.paused) {
     playJblMedia();
   } else {
+    jblSwitchingSong = false;
     jblVideoEl.pause();
   }
 }
@@ -335,7 +337,11 @@ for (const element of [jblAudioEl]) {
     }
   });
 
+  // Na troca de música o navegador dispara um "pause" automático; esse não é pausa de verdade.
+  for (const type of ['playing', 'error']) element.addEventListener(type, () => { jblSwitchingSong = false; });
+
   element.addEventListener('pause', () => {
+    if (jblSwitchingSong) return;
     if (element === jblVideoEl && jblModeActive && jblCurrentVideoId && !jblVideoEl.ended && !ytFallbackActive && socket.connected) {
       socket.emit('hostAction', { action: 'syncPauseState', payload: { paused: true } });
     }
@@ -371,6 +377,7 @@ socket.on('tvDeactivated', () => {
 socket.on('playerCommand', ({ command }) => {
   if (!jblModeActive || !jblCurrentVideoId) return;
   if (command === 'pause') {
+    jblSwitchingSong = false;
     jblVideoEl.pause();
   } else if (command === 'play') {
     playJblMedia();
@@ -842,6 +849,7 @@ function syncJblPlayer(song) {
 
     updatePlaybackStatus(latestState?.isPaused ? 'paused' : 'loading');
     jblVideoEl.preload = 'auto';
+    jblSwitchingSong = true;
     jblVideoEl.src = endpoint;
     jblVideoEl.load();
     if (resumeTime > 0) {
@@ -1597,7 +1605,7 @@ function remoteControl(action) {
   }
   if (action === 'togglePause' && jblModeActive) {
     if (jblVideoEl.paused) resumeJblPlayback();
-    else jblVideoEl.pause();
+    else { jblSwitchingSong = false; jblVideoEl.pause(); }
     return;
   }
   socket.emit('hostAction', { action });

@@ -280,3 +280,22 @@ test('cartão do Início mostra quem pediu no Modo Livre', () => {
   b.handlers.get('stateUpdate')(s, { isHost: false, currentIsMine: true });
   assert.equal(el.textContent, '🎧 Pedida por você');
 });
+
+test('troca de música não avisa "pausado" para a galera; pausa de verdade avisa', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  const audio = b.elements.get('mobJblAudio');
+  audio.dispatch('playing');
+  const { sent } = spySocket(b);
+  const next = state();
+  next.currentSong = { ...next.currentSong, id: 'song2', videoId: 'zyxwvutsrqp' };
+  b.handlers.get('stateUpdate')(next);
+  audio.dispatch('pause'); // pausa automática do navegador ao trocar o áudio
+  const pausedSync = () => sent.filter(m => m.data?.action === 'syncPauseState' && m.data.payload.paused === true);
+  assert.equal(pausedSync().length, 0, 'troca de música não conta como pausa');
+  audio.dispatch('playing');
+  vm.runInContext("remoteControl('togglePause')", b.context);
+  audio.dispatch('pause');
+  assert.equal(pausedSync().length, 1, 'pausa de verdade é avisada');
+});
