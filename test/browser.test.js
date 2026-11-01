@@ -268,3 +268,15 @@ test('pedido logo após reconectar entra de novo na festa e repete sozinho', asy
   assert.equal(res.ok, true, 'o pedido deu certo na segunda tentativa');
   assert.deepEqual(calls, ['addSong', 'registerPlayer', 'addSong']);
 });
+
+test('cartão do Início mostra quem pediu no Modo Livre', () => {
+  const b = browser('mobile');
+  const s = state();
+  s.currentSong.addedBy = { id: 'bia', name: 'Bia', avatar: '🎸' };
+  b.handlers.get('stateUpdate')(s, { isHost: false });
+  const el = b.elements.get('miniPlayerStatus');
+  assert.equal(el.textContent, '🎧 Pedida por Bia');
+  assert.equal(el.hidden, false);
+  b.handlers.get('stateUpdate')(s, { isHost: false, currentIsMine: true });
+  assert.equal(el.textContent, '🎧 Pedida por você');
+});

@@ -1185,8 +1185,17 @@ function updateMiniDesafioStatus() {
     el.hidden = false;
     return;
   }
-  if (!s || latestState.mode !== 'desafio') {
+  if (!s) {
     el.hidden = true;
+    return;
+  }
+  // Quem pediu: no Desafio só aparece depois da revelação.
+  const requester = s.isRevealed && s.addedBy?.name
+    ? (lastYou?.currentIsMine ? 'você' : s.addedBy.name)
+    : '';
+  if (latestState.mode !== 'desafio') {
+    el.textContent = requester ? `🎧 Pedida por ${requester}` : '';
+    el.hidden = !requester;
     return;
   }
   if (!s.votingOpen) {
@@ -1194,8 +1203,8 @@ function updateMiniDesafioStatus() {
     el.hidden = false;
     return;
   }
-  const mystery = !s.isRevealed ? `🕵️ ${mysteryClock.remaining()}s · ` : '';
-  el.textContent = `${mystery}👍 ${s.likesCount || 0} · 👎 ${s.dislikesEffective || 0}/${s.dislikeThreshold || 1}`;
+  const who = requester ? `🎧 ${requester} · ` : `🕵️ ${mysteryClock.remaining()}s · `;
+  el.textContent = `${who}👍 ${s.likesCount || 0} · 👎 ${s.dislikesEffective || 0}/${s.dislikeThreshold || 1}`;
   el.hidden = false;
 }
 
