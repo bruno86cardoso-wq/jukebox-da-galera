@@ -185,3 +185,24 @@ test('com cookies, troca o cliente "android" (que nÃ£o aceita login) pelo automÃ
     fs.rmSync(path.join(os.tmpdir(), 'jukebox-youtube-cookies.txt'), { force: true });
   }
 });
+
+test('link recusado pelo YouTube: gera outro e tenta uma vez mais antes de desistir', async () => {
+  let extractions = 0;
+  const media = createMedia('fake', {
+    // Porta fechada: o download falha como quando o YouTube recusa o link.
+    run: (_, args, options, done) => { extractions++; done(null, `https://127.0.0.1:1/audio-${extractions}`); }
+  });
+  let statusCode = 200;
+  const finished = new Promise(resolve => {
+    const fakeRes = {
+      headersSent: false, destroyed: false,
+      writeHead(code) { statusCode = code; this.headersSent = true; },
+      status(code) { statusCode = code; return this; },
+      end() { resolve(); }, on() {}, once() {}, emit() {}, destroy() { this.destroyed = true; resolve(); }
+    };
+    media.serve({ params: { videoId: 'abcdefghijk' }, headers: {} }, fakeRes, 'audio');
+  });
+  await finished;
+  assert.equal(extractions, 2, 'gerou um segundo link');
+  assert.equal(statusCode, 502, 'depois da segunda falha, desiste');
+});
