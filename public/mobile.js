@@ -62,6 +62,7 @@ let partyCode = (runningAsApp ? null : partyFromUrl) || (() => {
   } catch { return null; }
 })() || partyFromUrl;
 let currentSearchResults = [];
+let queueDrag = null; // arraste da fila em andamento (só o anfitrião)
 let jblModeActive = false;
 let jblMediaMode = 'audio';
 let jblCurrentSongId = null;
@@ -1063,7 +1064,12 @@ async function finishEntry(code, name) {
   setPartyInUrl(code);
   document.getElementById('partyCodeInput').value = code;
   document.getElementById('myPartyCode').textContent = '🎉 ' + code;
-  const res = await new Promise(resolve => socket.emit('registerPlayer', { name }, resolve));
+  let res = await new Promise(resolve => socket.emit('registerPlayer', { name }, resolve));
+  if (res?.needsConfirm) {
+    // Mesmo nome de alguém da festa: pode ser a mesma pessoa entrando por outro navegador.
+    const sameAs = confirm(`Já tem alguém chamado "${res.name}" nesta festa.\n\nÉ você voltando? Toque em OK.\n\nSe for outra pessoa com o mesmo nome, toque em Cancelar.`);
+    res = await new Promise(resolve => socket.emit('registerPlayer', { name, sameAs }, resolve));
+  }
   if (!res || !res.ok) return false;
   myPlayerId = res.player.id;
   localStorage.setItem('jukebox_player_id', myPlayerId);
@@ -1419,7 +1425,10 @@ socket.on('stateUpdate', (state, you) => {
     }
   }
   const qList = document.getElementById('mobQueueList');
-  if (state.queue.length === 0) {
+  // Durante o arraste a lista não é redesenhada (senão a música some do dedo).
+  if (queueDrag) {
+    queueDrag.pendingRender = true;
+  } else if (state.queue.length === 0) {
     qList.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px;">Nenhuma música na fila ainda.</div>`;
   } else {
     qList.innerHTML = state.queue.map((item, idx) => {
@@ -1428,9 +1437,11 @@ socket.on('stateUpdate', (state, you) => {
       const who = isMine
         ? '⭐ VOCÊ'
         : (isDesafio ? '🕵️ Mistério' : escapeHtml(item.addedBy.name));
+      const canMove = lastYou?.isHost && state.queue.length > 1;
       return `
-        <div class="song-item" style="${isMine ? 'border-color:#8b5cf6;' : ''}">
-          <div style="font-weight:800; color:var(--text-muted); width:20px;">${idx + 1}</div>
+        <div class="song-item queue-item" data-song-id="${escapeHtml(item.id)}" style="${isMine ? 'border-color:#8b5cf6;' : ''}">
+          ${canMove ? '<span class="drag-handle" aria-label="Arrastar para mudar a ordem" title="Segure e arraste">☰</span>' : ''}
+          <div class="queue-pos" style="font-weight:800; color:var(--text-muted); width:20px;">${idx + 1}</div>
           <img src="${escapeHtml(item.thumbnail)}" alt="" />
           <div class="song-item-info">
             <div class="song-item-title">${escapeHtml(item.title)}</div>
@@ -2194,3 +2205,76 @@ if (typeof window.addEventListener === 'function') {
 }
 
 showInstallBanner();
+
+// ==========================================
+// FILA: ANFITRIÃO ARRASTA PARA MUDAR A ORDEM (segurando o ☰)
+// ==========================================
+function queueItems() {
+  return Array.from(document.querySelectorAll('#mobQueueList .queue-item'));
+}
+
+function renumberQueue() {
+  queueItems().forEach((el, index) => {
+    const pos = el.querySelector('.queue-pos');
+    if (pos) pos.textContent = String(index + 1);
+  });
+}
+
+function startQueueDrag(event) {
+  const handle = event.target?.closest?.('.drag-handle');
+  if (!handle) return;
+  const item = handle.closest('.queue-item');
+  if (!item) return;
+  event.preventDefault();
+  queueDrag = { item, songId: item.dataset.songId, from: queueItems().indexOf(item), lastY: event.clientY, pointerId: event.pointerId };
+  item.classList.add('dragging');
+  try { handle.setPointerCapture(event.pointerId); } catch {}
+}
+
+function moveQueueDrag(event) {
+  if (!queueDrag || event.pointerId !== queueDrag.pointerId) return;
+  event.preventDefault();
+  const y = event.clientY;
+  queueDrag.lastY = y;
+  // Passou do meio da vizinha: a vizinha troca de lado. A música arrastada nunca sai da página
+  // (se sair, o navegador "solta" o dedo dela no meio do arraste).
+  const item = queueDrag.item;
+  const middle = el => { const rect = el.getBoundingClientRect(); return rect.top + rect.height / 2; };
+  let prev = item.previousElementSibling;
+  while (prev?.classList.contains('queue-item') && y < middle(prev)) {
+    item.after(prev);
+    prev = item.previousElementSibling;
+  }
+  let next = item.nextElementSibling;
+  while (next?.classList.contains('queue-item') && y > middle(next)) {
+    item.before(next);
+    next = item.nextElementSibling;
+  }
+  renumberQueue();
+  // Perto da borda da tela, rola sozinho para dar para levar longe.
+  if (y < 90) window.scrollBy(0, -12);
+  else if (y > window.innerHeight - 90) window.scrollBy(0, 12);
+}
+
+function endQueueDrag(event) {
+  if (!queueDrag || (event && event.pointerId !== queueDrag.pointerId)) return;
+  const { item, songId, from } = queueDrag;
+  const to = queueItems().indexOf(item);
+  item.classList.remove('dragging');
+  queueDrag = null;
+  if (to < 0 || to === from) return;
+  socket.emit('hostAction', { action: 'moveQueueItem', payload: { songId, toIndex: to } }, result => {
+    if (result?.ok) showToast(`↕️ Música movida para a posição ${to + 1}.`);
+    else showToast(result?.error || 'Não foi possível mudar a ordem.');
+  });
+}
+
+(() => {
+  const list = document.getElementById('mobQueueList');
+  if (!list?.addEventListener) return;
+  list.addEventListener('pointerdown', startQueueDrag);
+  // Mover e soltar valem na tela toda: o dedo pode sair de cima da lista.
+  document.addEventListener('pointermove', moveQueueDrag, { passive: false });
+  document.addEventListener('pointerup', endQueueDrag);
+  document.addEventListener('pointercancel', endQueueDrag);
+})();

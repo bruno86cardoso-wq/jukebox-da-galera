@@ -393,11 +393,13 @@ function createJukebox(options = {}) {
       broadcastState(entry);
     }, 30);
 
-    on('registerPlayer', ({ name }, reply) => {
+    on('registerPlayer', ({ name, sameAs }, reply) => {
       const entry = current();
       if (!identity) throw new Error('Sessão inválida. Recarregue a página.');
-      const player = entry.party.join(identity, name);
-      session.playerId = identity;
+      const player = entry.party.join(identity, name, { sameAs: typeof sameAs === 'boolean' ? sameAs : undefined });
+      // Já existe alguém com esse nome: o celular pergunta se é a mesma pessoa voltando.
+      if (player.needsConfirm) return reply({ ok: false, needsConfirm: true, name: player.name });
+      session.playerId = player.id;
       log(`👤 [${entry.party.code}] ${player.avatar} ${player.name}`);
       reply({ ok: true, player });
       broadcastState(entry);

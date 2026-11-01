@@ -132,3 +132,38 @@ test('duração exata do YouTube substitui a da busca (fila e música tocando)',
   assert.equal(st.currentSong.duration, '3:23');
   assert.equal(st.queue[0].duration, '1:02:05');
 });
+
+test('mesmo nome: pergunta se é a mesma pessoa; se for, junta; se não, vira "Monique 2"', () => {
+  const party = createParty({ code: 'TEST', hostKeyHash: 'x', media: null });
+  party.join('cel-1', 'Monique');
+  party.addSong('cel-1', song('aaaaaaaaaaa'));
+  // Entrou de novo pelo link do WhatsApp (outro navegador, outra identidade).
+  assert.deepEqual(party.join('whats-1', 'monique'), { needsConfirm: true, name: 'Monique' });
+  const back = party.join('whats-1', 'monique', { sameAs: true });
+  assert.equal(back.id, 'cel-1');
+  // Voltando de novo pelo mesmo navegador: reconhece sem perguntar.
+  assert.equal(party.join('whats-1', 'Monique').id, 'cel-1');
+  // Outra Monique de verdade.
+  const other = party.join('cel-2', 'Monique', { sameAs: false });
+  assert.equal(other.name, 'Monique 2');
+  const names = party.publicState({}).players.map(p => p.name).sort();
+  assert.deepEqual(names, ['Monique', 'Monique 2']);
+});
+
+test('anfitrião arrasta música na fila e a ordem escolhida fica', () => {
+  const party = createParty({ code: 'TEST', hostKeyHash: 'x', media: null });
+  for (const who of ['ana', 'bia', 'caio']) party.join(who, who);
+  party.addSong('ana', song('aaaaaaaaaaa'));      // tocando
+  party.addSong('ana', song('bbbbbbbbbbb'));
+  party.addSong('bia', song('ccccccccccc'));
+  party.addSong('caio', song('ddddddddddd'));
+  const order = () => party.publicState({}).queue.map(s => s.videoId[0]);
+  assert.deepEqual(order(), ['c', 'd', 'b']);
+  const id = party.publicState({}).queue[2].id;
+  assert.throws(() => party.control('moveQueueItem', { songId: id, toIndex: 0 }, { isHost: false }), /anfitrião/);
+  party.control('moveQueueItem', { songId: id, toIndex: 0 }, { isHost: true });
+  assert.deepEqual(order(), ['b', 'c', 'd']);
+  // Pedido novo entra depois da parte arrumada.
+  party.addSong('bia', song('eeeeeeeeeee'));
+  assert.deepEqual(order(), ['b', 'c', 'd', 'e']);
+});

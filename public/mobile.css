@@ -2114,3 +2114,25 @@ body:not(.can-control) .control-only { display: none !important; }
   flex-shrink: 0;
 }
 .install-steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.6; text-align: left; }
+
+/* ===== Fila: anfitrião arrasta pelo ☰ ===== */
+.drag-handle {
+  font-size: 20px;
+  color: #94a3b8;
+  padding: 8px 4px 8px 2px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+.queue-item.dragging {
+  border-color: #fbbf24 !important;
+  background: rgba(251, 191, 36, 0.14);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  transform: scale(1.02);
+  position: relative;
+  z-index: 5;
+}
+.queue-drag-hint { display: none; color: #fbbf24; font-weight: 700; }
+body.is-host .queue-drag-hint { display: inline; }
