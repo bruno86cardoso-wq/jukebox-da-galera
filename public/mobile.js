@@ -45,7 +45,12 @@ let myPlayerId = localStorage.getItem('jukebox_player_id');
 let myPlayerName = localStorage.getItem('jukebox_player_name') || '';
 let latestState = null;
 let lastYou = null;
-let partyCode = readPartyFromUrl() || (() => {
+const runningAsApp = (() => {
+  try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch { return false; }
+})();
+const partyFromUrl = readPartyFromUrl();
+// No app instalado o endereço de abertura é sempre o mesmo; a última festa em que a pessoa entrou vale mais.
+let partyCode = (runningAsApp ? null : partyFromUrl) || (() => {
   try {
     const last = localStorage.getItem('jukebox_last_party');
     const lastCreated = Number(localStorage.getItem('jukebox_last_party_created') || 0);
@@ -55,7 +60,7 @@ let partyCode = readPartyFromUrl() || (() => {
     }
     return last;
   } catch { return null; }
-})();
+})() || partyFromUrl;
 let currentSearchResults = [];
 let jblModeActive = false;
 let jblMediaMode = 'audio';
@@ -1089,7 +1094,7 @@ async function createPartyHere() {
   const created = await socket.createParty();
   if (!created.ok) return showToast(created.error || 'Não foi possível criar a festa.');
   if (await finishEntry(created.code, name)) {
-    showToast(`🎉 Festa criada! Código ${created.code}`);
+    showToast(`🎉 Festa criada! Código ${created.code}. Para chamar a galera, toque em 📲 Convidar.`);
     // Assume automaticamente o som da festa no aparelho que acabou de criar a sala
     jblModeActive = true;
     updateJblUi();
@@ -1098,7 +1103,7 @@ async function createPartyHere() {
     }
     playJblMedia();
     socket.claimPlayback().catch(() => {});
-    openQrModal();
+    // Sem abrir a janela do QR sozinha: quem quiser chamar a galera toca em "📲 Convidar".
   }
 }
 
@@ -1688,12 +1693,16 @@ function onSearchInput(val) {
   }, 220);
 }
 
+let suggestRound = 0;
 async function fetchSuggestions(term) {
+  const round = ++suggestRound;
   try {
     const res = await fetch(`/api/suggest?q=${encodeURIComponent(term)}`);
     if (!res.ok) return hideSuggestions();
     const data = await res.json();
     const suggestions = data.suggestions || [];
+    // Sugestão que chegou depois da busca (ou de apagar o texto) não reabre a lista.
+    if (round !== suggestRound) return;
     renderSuggestions(suggestions);
   } catch {
     hideSuggestions();
@@ -1718,6 +1727,8 @@ function renderSuggestions(list) {
 }
 
 function hideSuggestions() {
+  clearTimeout(suggestTimer);
+  suggestRound++;
   const box = document.getElementById('searchSuggestionsBox');
   if (box) box.style.display = 'none';
 }
@@ -1760,9 +1771,9 @@ function closeSearchResults() {
   const resultsBox = document.getElementById('searchResults');
   if (resultsBox) {
     resultsBox.innerHTML = `
-      <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 10px;">
-        Digite o nome da música ou do artista e toque em <strong>Buscar</strong>!<br/>
-        <small>Você pode adicionar quantas quiser (no Livre, até 2 seguidas por pessoa; no Desafio, uma de cada pessoa por vez).</small>
+      <div class="search-empty-hint">
+        Digite acima o nome da música ou do cantor 👆<br/>
+        <small>No Livre, até 2 seguidas por pessoa; no Desafio, uma de cada pessoa por vez.</small>
       </div>
     `;
   }
@@ -1844,6 +1855,7 @@ async function executeSearch(query) {
     if (!res.ok) throw new Error('Busca indisponível.');
     const data = await res.json();
     currentSearchResults = data.results || [];
+    const searchArtist = data.artist || '';
     toggleClearBtn();
 
     if (currentSearchResults.length === 0) {
@@ -1878,12 +1890,24 @@ async function executeSearch(query) {
         btnClass = 'btn-add is-playing';
       }
 
-      return `
-        <div class="song-item">
-          <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
+      const heading = searchArtist && idx === 0
+        ? `<div class="search-section-title">⭐ Mais tocadas de ${escapeHtml(searchArtist)}</div>`
+        : searchArtist && !song.hit && currentSearchResults[idx - 1]?.hit
+          ? '<div class="search-section-title other">Outros resultados</div>'
+          : '';
+      const rank = song.hit ? idx + 1 : 0;
+      const plays = song.plays ? `<div class="song-item-plays">${rank && rank <= 3 ? '🔥' : '👁'} ${escapeHtml(song.plays)} de visualizações</div>` : '';
+
+      return `${heading}
+        <div class="song-item${rank && rank <= 3 ? ' top-hit' : ''}">
+          <div class="song-item-cover">
+            <img src="${escapeHtml(song.thumbnail)}" alt="Capa" />
+            ${rank ? `<span class="song-rank">${rank}º</span>` : ''}
+          </div>
           <div class="song-item-info">
             <div class="song-item-title">${escapeHtml(song.title)}</div>
             <div class="song-item-sub">${escapeHtml(song.artist)}${song.duration && song.duration !== '—' ? ' • ' + escapeHtml(song.duration) : ''}</div>
+            ${plays}
           </div>
           <button type="button" class="${btnClass}" data-vid="${escapeHtml(song.videoId)}" ${btnDisabled ? 'disabled' : ''} onclick="addSongByIndex(${idx}, this)">
             ${btnLabel}
@@ -1894,7 +1918,7 @@ async function executeSearch(query) {
 
     resultsBox.innerHTML = `
       <div class="search-results-header">
-        <span class="search-results-count">Resultados (${currentSearchResults.length})</span>
+        <span class="search-results-count">${currentSearchResults.length} músicas encontradas</span>
         <button type="button" class="btn-close-results" onclick="closeSearchResults()">✕ Fechar busca</button>
       </div>
       ${listHtml}
@@ -2095,3 +2119,78 @@ socket.on('achievement', ({ player, achievement }) => {
   clearTimeout(window._achTimer);
   window._achTimer = setTimeout(() => { el.hidden = true; }, 3800);
 });
+
+// ===== Instalar como app: abre pelo ícone, sem a barra de endereço do navegador =====
+let installPrompt = null;
+const isIphone = /iphone|ipad|ipod/i.test(navigator.userAgent || '') ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function installDismissed() {
+  try { return Number(localStorage.getItem('jukebox_install_dismissed') || 0) > Date.now() - 3 * 24 * 60 * 60 * 1000; } catch { return false; }
+}
+
+function showInstallBanner() {
+  const banner = document.getElementById('installBanner');
+  if (!banner || runningAsApp || installDismissed()) return;
+  // No Android só mostra quando o navegador permite instalar; no iPhone mostra o passo a passo.
+  if (!installPrompt && !isIphone) return;
+  banner.hidden = false;
+}
+
+function installSteps(lines) {
+  const list = document.getElementById('installSteps');
+  const sub = document.getElementById('installBannerSub');
+  const button = document.getElementById('btnInstallApp');
+  if (!list) return;
+  list.innerHTML = lines.map(line => `<li>${line}</li>`).join('');
+  list.hidden = false;
+  if (sub) sub.hidden = true;
+  if (button) button.hidden = true;
+}
+
+async function installApp() {
+  if (installPrompt) {
+    const prompt = installPrompt;
+    installPrompt = null;
+    prompt.prompt();
+    const choice = await prompt.userChoice.catch(() => null);
+    if (choice?.outcome === 'accepted') {
+      document.getElementById('installBanner').hidden = true;
+      showToast('📲 Pronto! Agora é só abrir pelo ícone da Jukebox.');
+    }
+    return;
+  }
+  if (isIphone) {
+    installSteps([
+      'Toque em <strong>Compartilhar</strong> (o quadrado com a setinha ⬆️) na barra do navegador',
+      'Escolha <strong>Adicionar à Tela de Início</strong>',
+      'Depois abra pelo ícone 🎵 <strong>Jukebox</strong>'
+    ]);
+  } else {
+    installSteps([
+      'Toque nos <strong>3 pontinhos ⋮</strong> do navegador',
+      'Escolha <strong>Instalar app</strong> (ou Adicionar à tela inicial)',
+      'Depois abra pelo ícone 🎵 <strong>Jukebox</strong>'
+    ]);
+  }
+}
+
+function dismissInstall() {
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.hidden = true;
+  try { localStorage.setItem('jukebox_install_dismissed', String(Date.now())); } catch {}
+}
+
+if (typeof window.addEventListener === 'function') {
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    installPrompt = event;
+    showInstallBanner();
+  });
+  window.addEventListener('appinstalled', () => {
+    const banner = document.getElementById('installBanner');
+    if (banner) banner.hidden = true;
+  });
+}
+
+showInstallBanner();

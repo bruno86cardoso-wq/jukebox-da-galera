@@ -312,7 +312,8 @@ function createJukebox(options = {}) {
     const q = req.query.q.trim();
     if (!q) return res.json({ results: [] });
     try {
-      res.json({ results: await searchYouTubeMusic(q) });
+      const results = await searchYouTubeMusic(q);
+      res.json({ results, artist: results.topArtist || '' });
     } catch (err) {
       res.status(500).json({ error: 'Erro na busca do YouTube Music', details: err.message });
     }

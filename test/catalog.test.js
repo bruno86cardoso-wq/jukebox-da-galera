@@ -35,3 +35,23 @@ test('busca do YouTube Music: só músicas e vídeos, com artista e duração ce
     ['História De Amor (Ao Vivo)', 'Thiaguinho', '']
   ]);
 });
+
+test('busca mostra quantas vezes a música tocou', () => {
+  const { readPlays } = require('../lib/catalog');
+  assert.deepEqual(readPlays(['Música', '4:55', 'Tocou 3,4 bi vezes']), { plays: '3,4 bi', playCount: 3400000000 });
+  assert.deepEqual(readPlays(['Vídeo', 'Thiaguinho', '2,6 mi de visualizações']), { plays: '2,6 mi', playCount: 2600000 });
+  assert.deepEqual(readPlays(['Tocou 136 mil vezes']), { plays: '136 mil', playCount: 136000 });
+  assert.deepEqual(readPlays(['Música', 'Anitta', '3:13']), { plays: '', playCount: 0 });
+});
+
+test('busca por artista: os maiores sucessos dele vêm primeiro', () => {
+  const { rankArtistHits } = require('../lib/catalog');
+  const ranked = rankArtistHits([
+    { title: 'Bad', artist: 'Michael Jackson', playCount: 341e6 },
+    { title: 'Live', artist: 'allanwv', playCount: 196e6 },
+    { title: 'Billie Jean', artist: 'Michael Jackson', playCount: 3.4e9 },
+    { title: 'Thriller', artist: 'Michael Jackson', playCount: 415e6 }
+  ], 'Michael Jackson');
+  assert.deepEqual(ranked.map(s => s.title), ['Billie Jean', 'Thriller', 'Bad', 'Live']);
+  assert.deepEqual(ranked.map(s => !!s.hit), [true, true, true, false]);
+});
