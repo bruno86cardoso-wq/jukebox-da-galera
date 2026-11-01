@@ -256,7 +256,9 @@ function createJukebox(options = {}) {
   // Diagnóstico do áudio com a mesma configuração usada nas músicas (sem links nem dados da conta).
   app.get('/api/debug-media/:videoId', httpLimit, async (req, res) => {
     if (typeof media.explain !== 'function') return res.json({ ok: false, reason: 'diagnóstico indisponível' });
-    res.json({ ...(await media.explain(req.params.videoId)), relay: Boolean(media.getRelayOrigin?.()) });
+    // ?client=tv permite testar outro modo de cliente sem mudar o que está em uso.
+    const client = typeof req.query.client === 'string' ? req.query.client : undefined;
+    res.json({ ...(await media.explain(req.params.videoId, { client })), relay: Boolean(media.getRelayOrigin?.()) });
   });
 
   // Capa servida pelo próprio servidor para o telão poder ler as cores (canvas exige mesma origem).

@@ -31,13 +31,15 @@ test('áudio é extraído sozinho e falha de vídeo não invalida o áudio', asy
   const media = createMedia('fake', { run: (_, args, options, done) => calls.push({ args, done }) });
   const audio = media.resolveStreamUrl('abcdefghijk');
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].args[calls[0].args.indexOf('-f') + 1], 'best[ext=mp4]/bestaudio[ext=m4a]/best');
+  const audioFormat = calls[0].args[calls[0].args.indexOf('-f') + 1];
+  assert.ok(audioFormat.startsWith('best[ext=mp4][protocol=https]'), 'prefere mp4 direto');
+  assert.ok(audioFormat.split('/').every(part => part.includes('[protocol=https]')), 'nunca lista HLS');
   calls[0].done(null, 'https://example.test/audio');
   const ready = await audio;
   assert.equal(ready.kind, 'audio');
   const video = media.resolveStreamUrl('abcdefghijk', 'video');
   assert.equal(calls.length, 2);
-  assert.equal(calls[1].args[calls[1].args.indexOf('-f') + 1], 'best[ext=mp4]/best');
+  assert.equal(calls[1].args[calls[1].args.indexOf('-f') + 1], 'best[ext=mp4][protocol=https]/best[protocol=https]');
   calls[1].done(new Error('No video format'));
   assert.equal(await video, null);
   assert.equal(await media.resolveStreamUrl('abcdefghijk'), ready);
