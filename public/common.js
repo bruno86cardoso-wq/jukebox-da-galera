@@ -192,7 +192,7 @@ function confirmModeChange(mode, currentMode) {
   if (mode === currentMode) return false;
   const text = mode === 'desafio'
     ? 'Trocar para o 🔥 Modo Desafio?\n\nA galera vai votar (👍/👎) em cada música, quem pediu fica em segredo e a fila toca uma música de cada pessoa por vez.'
-    : 'Trocar para o 🟢 Modo Livre?\n\nA votação e o placar do Desafio param, e a fila volta a tocar até 2 seguidas por pessoa.';
+    : 'Trocar para o 🟢 Modo Livre?\n\nA votação e o placar do Desafio param, e a fila continua tocando uma música de cada pessoa por vez.';
   return confirm(text);
 }
 

@@ -4,16 +4,28 @@ const { rebalanceQueue } = require('../lib/queue');
 
 const songsOf = ids => ids.map((id, i) => ({ id: i, addedBy: { id }, addedAt: i }));
 
-test('Modo Livre: até duas músicas seguidas por pessoa e rebalanceamento é estável', () => {
+test('Modo Livre: uma música de cada pessoa por vez e rebalanceamento é estável', () => {
   const state = { mode: 'livre', queue: songsOf(['A', 'A', 'A', 'B', 'B', 'B', 'C']), roundOrder: ['A', 'B', 'C'], currentStreakUserId: 'A', currentStreakCount: 1 };
   rebalanceQueue(state);
-  assert.deepEqual(state.queue.map(s => s.addedBy.id), ['A', 'B', 'B', 'C', 'A', 'A', 'B']);
+  assert.deepEqual(state.queue.map(s => s.addedBy.id), ['B', 'C', 'A', 'B', 'A', 'B', 'A']);
   const ids = state.queue.map(s => s.id);
   rebalanceQueue(state);
   assert.deepEqual(state.queue.map(s => s.id), ids);
-  state.currentStreakCount = 2;
-  rebalanceQueue(state);
-  assert.equal(state.queue[0].addedBy.id, 'B');
+});
+
+test('quem chega depois entra na roda sem passar na frente (Bruno, Monique e convidados)', () => {
+  // Bruno pediu 3, Monique 3; a 1ª do Bruno está tocando.
+  let n = 0;
+  const add = (who, count) => { for (let i = 0; i < count; i++) state.queue.push({ id: n, addedBy: { id: who }, addedAt: n++ }); rebalanceQueue(state); };
+  const state = { mode: 'livre', queue: [], roundOrder: ['Bruno'], currentStreakUserId: 'Bruno', currentStreakCount: 1 };
+  add('Bruno', 2); add('Monique', 3);
+  assert.deepEqual(state.queue.map(s => s.addedBy.id), ['Monique', 'Bruno', 'Monique', 'Bruno', 'Monique']);
+  // Chega uma pessoa nova com 2 músicas: só a 1ª dela entra na rodada atual.
+  add('Pessoa', 2);
+  assert.deepEqual(state.queue.map(s => s.addedBy.id), ['Monique', 'Pessoa', 'Bruno', 'Monique', 'Pessoa', 'Bruno', 'Monique']);
+  // Uma quarta pessoa também entra no fim da roda.
+  add('Quarta', 1);
+  assert.deepEqual(state.queue.map(s => s.addedBy.id), ['Monique', 'Pessoa', 'Quarta', 'Bruno', 'Monique', 'Pessoa', 'Bruno', 'Monique']);
 });
 
 test('Modo Desafio: rodízio de uma música por pessoa por vez', () => {

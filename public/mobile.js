@@ -1773,7 +1773,7 @@ function closeSearchResults() {
     resultsBox.innerHTML = `
       <div class="search-empty-hint">
         Digite acima o nome da música ou do cantor 👆<br/>
-        <small>No Livre, até 2 seguidas por pessoa; no Desafio, uma de cada pessoa por vez.</small>
+        <small>A fila toca uma música de cada pessoa por vez.</small>
       </div>
     `;
   }
