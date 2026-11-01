@@ -65,6 +65,7 @@ function createJukebox(options = {}) {
   };
   // Com o caminho rápido, só um yt-dlp por vez: ele é o que mais gasta memória (limite de 512 MB).
   const media = options.media || createMedia(YT_DLP_PATH, { fastResolver, maxConcurrent: fastResolver ? 1 : 2 });
+  if (fastResolver && !options.media) setTimeout(() => require('./lib/youtubei').warmUp(), 2000).unref();
 
   // ==========================================
   // DESCOBERTA DE IP LOCAL + TÚNEL 4G/5G

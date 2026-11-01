@@ -238,3 +238,44 @@ test('caminho rápido não espera na fila do yt-dlp (um yt-dlp por vez)', async 
   assert.equal(quick.url, 'https://rapido.example.test/x', 'a rápida sai mesmo com o yt-dlp ocupado');
   assert.equal(started.length, 1);
 });
+
+test('áudio em pedaços: pedido aberto vira pedaços pequenos e chega inteiro e na ordem', async () => {
+  const http = require('node:http');
+  const { proxyChunked } = require('../lib/media');
+  const content = Buffer.from(Array.from({ length: 3000 }, (_, i) => i % 251));
+  // Como o YouTube: recusa pedido aberto ou maior que 1000 bytes.
+  const server = http.createServer((req, res) => {
+    const m = /^bytes=(\d+)-(\d+)$/.exec(req.headers.range || '');
+    if (!m || Number(m[2]) - Number(m[1]) + 1 > 1000) { res.writeHead(403); return res.end(); }
+    const start = Number(m[1]); const end = Math.min(Number(m[2]), content.length - 1);
+    res.writeHead(206, { 'Content-Type': 'audio/mp4', 'Content-Range': `bytes ${start}-${end}/${content.length}` });
+    res.end(content.subarray(start, end + 1));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/audio`;
+  const fakeRes = () => {
+    const parts = []; const listeners = {};
+    return {
+      parts, status: 0, headers: {}, headersSent: false,
+      writeHead(code, headers) { this.status = code; this.headers = headers; this.headersSent = true; },
+      write(buffer) { parts.push(Buffer.from(buffer)); return true; },
+      end(buffer) { if (buffer) parts.push(Buffer.from(buffer)); (listeners.finish || []).forEach(fn => fn()); },
+      once(event, fn) { (listeners[event] ||= []).push(fn); }, off() {}, destroy() { this.destroyed = true; },
+      status_(code) { this.status = code; return this; }
+    };
+  };
+  try {
+    const whole = fakeRes();
+    await proxyChunked(url, { headers: { range: 'bytes=0-' } }, whole, null, 1000);
+    assert.equal(whole.status, 206);
+    assert.equal(whole.headers['Content-Range'], 'bytes 0-2999/3000');
+    assert.ok(Buffer.concat(whole.parts).equals(content), 'arquivo inteiro, emendado na ordem');
+
+    const middle = fakeRes();
+    await proxyChunked(url, { headers: { range: 'bytes=1500-' } }, middle, null, 1000);
+    assert.equal(middle.headers['Content-Range'], 'bytes 1500-2999/3000');
+    assert.ok(Buffer.concat(middle.parts).equals(content.subarray(1500)), 'arrastar a barra: a partir do meio');
+  } finally {
+    server.close();
+  }
+});
