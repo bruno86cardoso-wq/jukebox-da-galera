@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jukebox-cache-v18';
+const CACHE_NAME = 'jukebox-cache-v19';
 const STATIC_ASSETS = [
   '/',
   '/mobile.html',

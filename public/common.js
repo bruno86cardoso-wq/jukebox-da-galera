@@ -5,7 +5,11 @@ function escapeHtml(value) {
   })[character]);
 }
 
+// Depois de reconectar, o celular entra de novo na festa sozinho; esse erro não precisa de aviso.
+const isRejoinError = message => /Entre (na|em uma) festa/i.test(String(message || ''));
+
 function partyNotice(message) {
+  if (isRejoinError(message)) return;
   let notice = document.getElementById('partyNotice');
   if (!notice) {
     notice = document.createElement('div');

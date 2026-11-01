@@ -991,6 +991,35 @@ async function enterParty(code, name, silent = false) {
   return finishEntry(joined.code, name);
 }
 
+// "Pronto na festa": falso enquanto reconecta; pedidos esperam até voltar.
+let partyReady = false;
+const partyReadyWaiters = [];
+function setPartyReady(value) {
+  partyReady = value;
+  if (value) partyReadyWaiters.splice(0).forEach(resolve => resolve(true));
+}
+function waitPartyReady(ms = 8000) {
+  if (partyReady) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(false), ms);
+    partyReadyWaiters.push(() => { clearTimeout(timer); resolve(true); });
+  });
+}
+
+// Envia um pedido à festa. Se o celular acabou de reconectar e o servidor ainda não sabe
+// quem ele é ("entre na festa"), entra de novo sozinho e repete uma vez.
+async function partyRequest(event, data) {
+  await waitPartyReady();
+  const send = () => new Promise(resolve => socket.emit(event, data, resolve));
+  let res = await send();
+  const code = socket.party?.code || partyCode;
+  if (!res?.ok && isRejoinError(res?.error) && myPlayerName && code) {
+    setPartyReady(false);
+    if (await enterParty(code, myPlayerName, true)) res = await send();
+  }
+  return res;
+}
+
 async function finishEntry(code, name) {
   partyCode = code;
   setPartyInUrl(code);
@@ -1003,6 +1032,7 @@ async function finishEntry(code, name) {
   document.getElementById('loginScreen').style.display = 'none';
   hideSplashScreen();
   updateMyHeader(res.player);
+  setPartyReady(true);
   return true;
 }
 
@@ -1043,6 +1073,7 @@ socket.onPartyLost = result => showLogin(result?.error || 'A festa não existe m
 
 let reclaimJbl = false;
 socket.on('disconnect', () => {
+  setPartyReady(false);
   // A música continua tocando; ao reconectar, este aparelho reassume o som.
   if (!jblModeActive) return;
   reclaimJbl = true;
@@ -1478,7 +1509,7 @@ function handleMiniPlayPause() {
 }
 
 function castVote(type) {
-  socket.emit('voteSong', { type, songId: latestState?.currentSong?.id }, (res) => {
+  partyRequest('voteSong', { type, songId: latestState?.currentSong?.id }).then((res) => {
     if (!res || !res.ok) {
       showToast(res?.error || 'Não foi possível votar.');
     } else {
@@ -1838,7 +1869,7 @@ function addSongByIndex(idx, btnEl) {
   }
   const dedicationInput = document.getElementById('dedicationInput');
   const dedication = (dedicationInput ? dedicationInput.value : '').trim().slice(0, 60);
-  socket.emit('addSong', { song, dedication: dedication || undefined }, (res) => {
+  partyRequest('addSong', { song, dedication: dedication || undefined }).then((res) => {
     if (btnEl) delete btnEl.dataset.adding;
     if (!res || !res.ok) {
       showToast(res?.error || 'Erro ao adicionar');

@@ -251,3 +251,20 @@ test('depois de uma música com erro, a próxima volta para o áudio normal', as
   assert.equal(vm.runInContext('ytFallbackActive', b.context), false);
   assert.ok(b.elements.get('mobJblAudio').src.includes('/api/audio/zyxwvutsrqp'));
 });
+
+test('pedido logo após reconectar entra de novo na festa e repete sozinho', async () => {
+  const b = browser('mobile');
+  const sock = vm.runInContext('socket', b.context);
+  const calls = [];
+  sock.connected = true;
+  sock.emit = (event, data, cb) => {
+    calls.push(event);
+    if (event === 'addSong') cb(calls.filter(e => e === 'addSong').length === 1
+      ? { ok: false, error: 'Entre na festa antes de pedir músicas.' } : { ok: true });
+    if (event === 'registerPlayer') cb({ ok: true, player: { id: 'p1', name: 'Ana', avatar: '🎸', ammo: 3, score: 0 } });
+  };
+  vm.runInContext("myPlayerName = 'Ana'; setPartyReady(true)", b.context);
+  const res = await vm.runInContext("partyRequest('addSong', { song: { videoId: 'abcdefghijk' } })", b.context);
+  assert.equal(res.ok, true, 'o pedido deu certo na segunda tentativa');
+  assert.deepEqual(calls, ['addSong', 'registerPlayer', 'addSong']);
+});
