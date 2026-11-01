@@ -1245,8 +1245,10 @@ socket.on('stateUpdate', (state, you) => {
   updatePlaybackStatus();
 
   // Pré-aquece a próxima música da fila para tocar sem nenhum delay!
-  if (state.queue && state.queue.length > 0 && jblModeActive) {
-    const nextSong = state.queue[0];
+  // Fila vazia: a próxima é a da rádio que já está engatilhada.
+  const upcoming = state.queue?.[0] || state.upcomingRadio;
+  if (upcoming && jblModeActive) {
+    const nextSong = upcoming;
     fetch(`/api/audio/${nextSong.videoId}`, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
     preloadNextSongAudio(nextSong.videoId);
   }

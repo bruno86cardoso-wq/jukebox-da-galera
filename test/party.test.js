@@ -91,3 +91,33 @@ test('rádio no Desafio: sem votação, sem mistério e não trava pedidos', asy
   party.control('skipSong', {}, { playerId: 'bia' });
   assert.equal(party.publicState({}).currentSong.videoId, 'bbbbbbbbbbb', 'convidado pode pular a da rádio');
 });
+
+test('rádio deixa 5 engatilhadas: pular entra na hora e repõe o estoque', async () => {
+  const ids = Array.from({ length: 20 }, (_, i) => `r${String(i).padStart(2, '0')}aaaaaaaa`);
+  let calls = 0;
+  const radio = async () => { calls++; return ids.map(id => ({ videoId: id, title: 'Rádio ' + id.slice(0, 3), artist: 'Rádio', duration: '3:00' })); };
+  const resolved = [];
+  const media = { resolveStreamUrl: async (id) => { resolved.push(id); return null; } };
+  const party = createParty({ code: 'TEST', hostKeyHash: 'x', media, radio });
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  party.join('ana', 'Ana');
+  party.addSong('ana', song('aaaaaaaaaaa'));
+  await settle(); await settle();
+  const st = () => party.publicState({});
+  assert.ok(st().upcomingRadio, 'com a fila vazia, já mostra a próxima da rádio');
+  const first = st().upcomingRadio.videoId;
+  assert.ok(resolved.includes(first), 'áudio da próxima já foi preparado');
+
+  party.control('songEnded', { songId: st().currentSong.id }, { isActivePlayer: true });
+  assert.equal(st().currentSong.videoId, first, 'entra na hora, sem esperar a busca');
+  const played = new Set([first]);
+  for (let i = 0; i < 8; i++) {
+    await settle(); await settle();
+    party.control('skipSong', {}, { isHost: true });
+    const now = st().currentSong;
+    assert.equal(now.isRadio, true, 'sempre tem uma engatilhada');
+    assert.ok(!played.has(now.videoId), 'não repete');
+    played.add(now.videoId);
+  }
+  assert.ok(calls <= 12, 'busca a rádio de novo só para repor');
+});
