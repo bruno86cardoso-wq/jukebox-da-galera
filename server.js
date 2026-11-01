@@ -258,6 +258,12 @@ function createJukebox(options = {}) {
     if (typeof media.explain !== 'function') return res.json({ ok: false, reason: 'diagnóstico indisponível' });
     // ?client=tv permite testar outro modo de cliente sem mudar o que está em uso.
     const client = typeof req.query.client === 'string' ? req.query.client : undefined;
+    // ?engine=youtubei testa o YouTube.js (experimental), sem mudar o que as músicas usam.
+    if (req.query.engine === 'youtubei' && validVideoId(req.params.videoId)) {
+      return res.json(await require('./lib/youtubei').explain(req.params.videoId, {
+        playerClient: client, cookiesFile: process.env.YTDLP_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt'
+      }));
+    }
     res.json({ ...(await media.explain(req.params.videoId, { client })), relay: Boolean(media.getRelayOrigin?.()) });
   });
 
