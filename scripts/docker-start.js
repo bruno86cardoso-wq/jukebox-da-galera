@@ -1,8 +1,11 @@
 const { spawn } = require('node:child_process');
 const http = require('node:http');
 
-// O provedor aceita apenas conexões internas ao contêiner.
-const useProvider = process.env.YTDLP_CLIENT === 'mweb' || Boolean(process.env.MEDIA_DIAGNOSTICS_VIDEO);
+// O provedor de token (bgutil) aceita apenas conexões internas ao contêiner. Os modos "web" do YouTube
+// exigem esse token para o link de áudio tocar; sem ele, parte das músicas é recusada (403).
+// Liga sempre que estiver instalado; YTDLP_TOKEN_PROVIDER=0 desliga.
+const fs = require('node:fs');
+const useProvider = process.env.YTDLP_TOKEN_PROVIDER !== '0' && fs.existsSync('/opt/token-provider/build/main.js');
 const provider = useProvider ? spawn(process.execPath,
   ['--max-old-space-size=192', '/opt/token-provider/build/main.js', '--host', '127.0.0.1', '--port', '4416'],
   { cwd: '/opt/token-provider', stdio: 'inherit' }) : null;
@@ -17,8 +20,9 @@ function stop(code) {
   timer.unref();
   process.exitCode = code;
 }
-provider?.on('error', () => stop(1));
-provider?.on('exit', code => { if (!stopping) stop(code || 1); });
+// O provedor ajuda, mas não é essencial: se cair, o app continua (só algumas músicas podem falhar).
+provider?.on('error', error => console.warn('⚠️ Provedor de token indisponível:', error.message));
+provider?.on('exit', code => { if (!stopping) console.warn(`⚠️ Provedor de token encerrou (código ${code}). O app continua sem ele.`); });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => stop(0));
 
 function ping() {
@@ -34,7 +38,10 @@ function ping() {
 (async () => {
   const deadline = Date.now() + 45000;
   while (useProvider && !stopping && !(await ping())) {
-    if (Date.now() >= deadline) throw new Error('Provedor de áudio não iniciou.');
+    if (Date.now() >= deadline) {
+      console.warn('⚠️ Provedor de token não respondeu a tempo. Iniciando o app sem ele.');
+      break;
+    }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   if (stopping) return;
