@@ -206,3 +206,20 @@ test('link recusado pelo YouTube: gera outro e tenta uma vez mais antes de desis
   assert.equal(extractions, 2, 'gerou um segundo link');
   assert.equal(statusCode, 502, 'depois da segunda falha, desiste');
 });
+
+test('áudio usa primeiro o caminho rápido e só chama o yt-dlp se ele falhar', async () => {
+  const extractor = [];
+  const fast = new Map([['abcdefghijk', { url: 'https://rapido.example.test/a?expire=9999999999' }], ['lmnopqrstuv', null]]);
+  const media = createMedia('fake', {
+    fastResolver: async id => fast.get(id),
+    run: (file, args, options, done) => { extractor.push(args.at(-1).slice(-11)); done(null, 'https://lento.example.test/b'); }
+  });
+  const quick = await media.resolveStreamUrl('abcdefghijk');
+  assert.equal(quick.url, 'https://rapido.example.test/a?expire=9999999999');
+  assert.equal(extractor.length, 0, 'não abriu o yt-dlp');
+  const slow = await media.resolveStreamUrl('lmnopqrstuv');
+  assert.equal(slow.url, 'https://lento.example.test/b', 'YouTube recusou o rápido: usa o yt-dlp');
+  assert.deepEqual(extractor, ['lmnopqrstuv']);
+  await media.resolveStreamUrl('01234567890', 'video');
+  assert.equal(extractor.length, 2, 'vídeo continua no yt-dlp');
+});

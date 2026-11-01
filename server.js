@@ -55,7 +55,11 @@ function createJukebox(options = {}) {
     log('✅ yt-dlp instalado com sucesso!');
   }
 
-  const media = options.media || createMedia(YT_DLP_PATH);
+  // Áudio: primeiro o YouTube.js (rápido, dentro do app); se o YouTube recusar, o yt-dlp. YTJS_ENGINE=0 desliga.
+  const cookiesFile = process.env.YTDLP_COOKIES_FILE || '/etc/secrets/youtube-cookies.txt';
+  const fastResolver = process.env.YTJS_ENGINE === '0' ? null
+    : videoId => require('./lib/youtubei').fastAudio(videoId, { cookiesFile });
+  const media = options.media || createMedia(YT_DLP_PATH, { fastResolver });
 
   // ==========================================
   // DESCOBERTA DE IP LOCAL + TÚNEL 4G/5G
