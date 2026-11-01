@@ -8,5 +8,3 @@ services:
     envVars:
       - key: DISABLE_TUNNEL
         value: "1"
-      - key: YTDLP_CLIENT
-        value: "mweb"
