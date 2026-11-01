@@ -1992,3 +1992,18 @@ body:not(.can-control) .control-only { display: none !important; }
     font-size: 11px;
   }
 }
+
+/* Barra de progresso: área de toque maior e bolinha fácil de arrastar. */
+.progress-track::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  bottom: -14px;
+}
+.progress-thumb {
+  width: 18px;
+  height: 18px;
+  right: -9px;
+}

@@ -75,9 +75,11 @@ function formatTime(seconds) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
+let jblSeekDragging = false;
+
 function onJblTimeUpdate() {
   const el = jblVideoEl;
-  if (!el) return;
+  if (!el || jblSeekDragging) return;
   const current = el.currentTime || 0;
   const total = el.duration || 0;
   if (total > 0) {
@@ -95,12 +97,65 @@ function onJblTimeUpdate() {
   }
 }
 
-function seekJblPlayer(e) {
+function seekRatioFromEvent(e) {
   const track = document.getElementById('playerProgressTrack');
-  if (!track) return;
+  if (!track) return null;
   const rect = track.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+  const x = e.touches?.[0]?.clientX ?? e.changedTouches?.[0]?.clientX ?? e.clientX;
+  if (!rect.width || typeof x !== 'number') return null;
+  return Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+}
+
+function seekTotalSeconds() {
+  if (ytFallbackActive && mobYtPlayer && typeof mobYtPlayer.getDuration === 'function') return mobYtPlayer.getDuration() || 0;
+  return jblVideoEl?.duration || 0;
+}
+
+// Mostra a bolinha e o tempo enquanto arrasta, sem pular a música a cada movimento.
+function previewSeek(ratio) {
+  const total = seekTotalSeconds();
+  const bar = document.getElementById('playerProgressBar');
+  if (bar) bar.style.width = (ratio * 100) + '%';
+  const curLabel = document.getElementById('playerCurrentTime');
+  if (curLabel && total > 0) curLabel.textContent = formatTime(ratio * total);
+}
+
+function startSeekDrag(e) {
+  if (!jblModeActive) return showToast('⏩ Para adiantar a música, use o celular que está tocando o som.');
+  if (!(seekTotalSeconds() > 0)) return;
+  const ratio = seekRatioFromEvent(e);
+  if (ratio === null) return;
+  jblSeekDragging = true;
+  try { e.currentTarget?.setPointerCapture?.(e.pointerId); } catch (err) {}
+  previewSeek(ratio);
+}
+
+function moveSeekDrag(e) {
+  if (!jblSeekDragging) return;
+  const ratio = seekRatioFromEvent(e);
+  if (ratio !== null) previewSeek(ratio);
+}
+
+function endSeekDrag(e) {
+  if (!jblSeekDragging) return;
+  jblSeekDragging = false;
+  const ratio = seekRatioFromEvent(e);
+  if (ratio !== null) seekJblPlayer(e, ratio);
+}
+
+if (typeof document !== 'undefined') {
+  const track = document.getElementById('playerProgressTrack');
+  if (track && typeof track.addEventListener === 'function') {
+    track.addEventListener('pointerdown', startSeekDrag);
+    track.addEventListener('pointermove', moveSeekDrag);
+    track.addEventListener('pointerup', endSeekDrag);
+    track.addEventListener('pointercancel', () => { jblSeekDragging = false; onJblTimeUpdate(); });
+  }
+}
+
+function seekJblPlayer(e, presetRatio) {
+  const ratio = typeof presetRatio === 'number' ? presetRatio : seekRatioFromEvent(e);
+  if (ratio === null) return;
 
   if (ytFallbackActive && mobYtPlayer && typeof mobYtPlayer.getDuration === 'function') {
     const total = mobYtPlayer.getDuration() || 0;
@@ -682,7 +737,7 @@ function onMobYtStateChange(e) {
 
     clearInterval(ytProgressTimer);
     ytProgressTimer = setInterval(() => {
-      if (!mobYtPlayer || typeof mobYtPlayer.getCurrentTime !== 'function') return;
+      if (jblSeekDragging || !mobYtPlayer || typeof mobYtPlayer.getCurrentTime !== 'function') return;
       const cur = mobYtPlayer.getCurrentTime() || 0;
       const total = mobYtPlayer.getDuration() || 0;
       if (total > 0) {
