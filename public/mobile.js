@@ -528,9 +528,9 @@ function updateMediaSession(song) {
   if (!('mediaSession' in navigator) || !song) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.title || 'Jukebox da Galera',
+      title: song.title || 'Tô na Fila',
       artist: song.artist || 'YouTube Music',
-      album: 'Jukebox da Galera',
+      album: 'Tô na Fila',
       artwork: song.thumbnail ? [{ src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' }] : []
     });
     navigator.mediaSession.setActionHandler('play', () => remoteControl('togglePause'));
@@ -942,7 +942,7 @@ async function sharePartyLink() {
   if (navigator.share) {
     try {
       await navigator.share({
-        title: 'Jukebox da Galera 🎵',
+        title: 'Tô na Fila 🎵',
         text: 'Entre na fila de músicas da festa:',
         url: partyInviteUrl
       });
@@ -959,7 +959,7 @@ function sharePartyWhatsApp() {
   try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) {}
   const code = socket.party?.code || partyCode;
   const url = partyInviteUrl || window.location.href;
-  const msg = encodeURIComponent(`🎉 Vem pra nossa festa no Jukebox da Galera!\n🎵 Peça suas músicas aqui: ${url}\n🔑 Código da festa: ${code}`);
+  const msg = encodeURIComponent(`🎉 Vem pra nossa festa no Tô na Fila!\n🎵 Peça suas músicas aqui: ${url}\n🔑 Código da festa: ${code}`);
   window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
 }
 
@@ -2236,7 +2236,7 @@ async function installApp() {
     const choice = await prompt.userChoice.catch(() => null);
     if (choice?.outcome === 'accepted') {
       document.getElementById('installBanner').hidden = true;
-      showToast('📲 Pronto! Agora é só abrir pelo ícone da Jukebox.');
+      showToast('📲 Pronto! Agora é só abrir pelo ícone do Tô na Fila.');
     }
     return;
   }
@@ -2244,13 +2244,13 @@ async function installApp() {
     installSteps([
       'Toque em <strong>Compartilhar</strong> (o quadrado com a setinha ⬆️) na barra do navegador',
       'Escolha <strong>Adicionar à Tela de Início</strong>',
-      'Depois abra pelo ícone 🎵 <strong>Jukebox</strong>'
+      'Depois abra pelo ícone 🎵 <strong>Tô na Fila</strong>'
     ]);
   } else {
     installSteps([
       'Toque nos <strong>3 pontinhos ⋮</strong> do navegador',
       'Escolha <strong>Instalar app</strong> (ou Adicionar à tela inicial)',
-      'Depois abra pelo ícone 🎵 <strong>Jukebox</strong>'
+      'Depois abra pelo ícone 🎵 <strong>Tô na Fila</strong>'
     ]);
   }
 }

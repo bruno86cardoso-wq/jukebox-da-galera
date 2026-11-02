@@ -498,7 +498,7 @@ function createJukebox(options = {}) {
     });
     const port = server.address().port;
     if (!CLOUD_PUBLIC_URL) connectionInfo.localUrl = `http://${getLocalIp()}:${port}`;
-    log('🎵 Jukebox da Galera: http://localhost:' + port + '/tv');
+    log('🎵 Tô na Fila: http://localhost:' + port + '/tv');
     log('📱 Convidados entram pelo QR Code de cada festa (' + connectionInfo.localUrl + ')');
     if (process.env.MEDIA_ORIGIN) log('🔊 Áudio fornecido pelo computador da festa. Mantenha-o ligado com o Jukebox aberto.');
     startCloudflareTunnel();

@@ -1,4 +1,4 @@
-# Jukebox da Galera
+# Tô na Fila
 
 Jukebox colaborativa: convidados pedem músicas pelo celular, enquanto um anfitrião reproduz no telão ou em um celular conectado à caixa de som. O modo Desafio inclui votação, munição de dislikes e ranking.
 

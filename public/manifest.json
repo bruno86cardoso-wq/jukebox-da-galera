@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Jukebox da Galera",
-  "short_name": "Jukebox",
+  "name": "Tô na Fila",
+  "short_name": "Tô na Fila",
   "description": "Peça músicas na festa pelo celular",
   "start_url": "/",
   "scope": "/",
