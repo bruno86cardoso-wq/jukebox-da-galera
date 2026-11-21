@@ -689,11 +689,94 @@ if (typeof window !== 'undefined') {
   loadYtIframeApi();
 }
 
+// ==========================================
+// PLAY ESCONDIDO: o iPhone só deixa o player do YouTube começar sozinho depois de alguns plays
+// dados por toque. Nos primeiros toques reais no celular do som (pedir música, abrir o player),
+// o app dá play sem som no player do YouTube e pausa logo em seguida, para o iPhone já liberar.
+// Só quando nenhuma música toca pelo servidor (outro player poderia interromper o som no iPhone).
+// ==========================================
+const YT_PRIME_MAX = 4;
+const YT_PRIME_VIDEO = 'dQw4w9WgXcQ';
+let ytPrimeCount = 0;
+let ytPriming = false;
+
+function hideYtBoxOffscreen(box) {
+  // Fora da tela, mas existindo: o iPhone pode não tocar um quadro escondido com display:none.
+  box.style.display = 'block';
+  box.style.position = 'fixed';
+  box.style.left = '-10000px';
+  box.style.top = '0';
+  box.style.width = '240px';
+  box.style.height = '135px';
+  box.dataset.offscreen = '1';
+}
+
+function restoreYtBox(box) {
+  if (!box || box.dataset.offscreen !== '1') return;
+  for (const prop of ['position', 'left', 'top', 'width', 'height']) box.style[prop] = '';
+  delete box.dataset.offscreen;
+}
+
+function ensureYtPlayerForPriming() {
+  if (mobYtPlayer || typeof window === 'undefined' || !window.YT || !window.YT.Player) return;
+  const box = document.getElementById('mobYtFallbackBox');
+  if (!box || !document.getElementById('mobYtPlayer')) return;
+  hideYtBoxOffscreen(box);
+  const origin = window.location?.origin || 'https://jukebox-da-galera.onrender.com';
+  try {
+    mobYtPlayer = new window.YT.Player('mobYtPlayer', {
+      height: '100%', width: '100%', videoId: YT_PRIME_VIDEO, host: 'https://www.youtube.com',
+      playerVars: { autoplay: 0, controls: 1, playsinline: 1, rel: 0, modestbranding: 1, enablejsapi: 1, origin, widget_referrer: origin },
+      events: {
+        onReady: (e) => {
+          const iframe = e.target.getIframe?.();
+          if (iframe && typeof iframe.setAttribute === 'function') iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+          // Uma música pode ter começado pelo YouTube enquanto o player nascia.
+          if (ytFallbackActive && pendingYtFallbackSong) activateYtFallback(pendingYtFallbackSong);
+        },
+        onStateChange: onMobYtStateChange,
+        onError: onMobYtError
+      }
+    });
+  } catch (err) { mobYtPlayer = null; }
+}
+
+function primeYtPlayer() {
+  if (!instantYtEnabled || !jblModeActive || ytFallbackActive || ytPriming || ytPrimeCount >= YT_PRIME_MAX) return;
+  if (jblAudioEl && !jblAudioEl.paused) return;
+  if (!mobYtPlayer || typeof mobYtPlayer.playVideo !== 'function') { ensureYtPlayerForPriming(); return; }
+  const box = document.getElementById('mobYtFallbackBox');
+  if (box && box.style.display === 'none') hideYtBoxOffscreen(box);
+  ytPriming = true;
+  try { mobYtPlayer.mute(); mobYtPlayer.playVideo(); } catch (e) { ytPriming = false; }
+  // Se não tocar (iPhone recusou), libera para tentar no próximo toque.
+  setTimeout(() => {
+    if (!ytPriming) return;
+    ytPriming = false;
+    try { mobYtPlayer.pauseVideo(); mobYtPlayer.unMute(); } catch (e) {}
+    finishYtPriming();
+  }, 4000);
+}
+
+function finishYtPriming() {
+  if (ytFallbackActive) return;
+  const box = document.getElementById('mobYtFallbackBox');
+  if (box && box.dataset.offscreen === '1') { restoreYtBox(box); box.style.display = 'none'; }
+}
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  for (const type of ['touchend', 'click']) {
+    document.addEventListener(type, primeYtPlayer, { capture: true, passive: true });
+  }
+}
+
 function activateYtFallback(song) {
   if (!song || !jblModeActive) return;
   pendingYtFallbackSong = song;
   ytFallbackActive = true;
+  ytPriming = false;
   requestScreenWakeLock();
+  restoreYtBox(document.getElementById('mobYtFallbackBox'));
 
   if (jblVideoEl) {
     try {
@@ -721,8 +804,12 @@ function activateYtFallback(song) {
     return;
   }
 
+  // Player do play escondido ainda nascendo: quando ficar pronto, ele mesmo toca esta música.
+  if (mobYtPlayer && typeof mobYtPlayer.loadVideoById !== 'function') return;
+
   if (mobYtPlayer && typeof mobYtPlayer.loadVideoById === 'function') {
     try {
+      try { mobYtPlayer.unMute(); } catch (e) {}
       mobYtPlayer.loadVideoById({
         videoId: song.videoId,
         startSeconds: 0
@@ -777,6 +864,8 @@ function activateYtFallback(song) {
 // Vídeo indisponível ou bloqueado fora do YouTube (2, 5, 100, 101, 150, 153): pula para a próxima.
 function onMobYtError(e) {
   console.warn('Erro no player do YouTube:', e && e.data);
+  // Erro no play escondido (ou com o player parado) nunca pula música da galera.
+  if (ytPriming || !ytFallbackActive) { ytPriming = false; return; }
   clearInterval(ytProgressTimer);
   if (!jblModeActive || !jblCurrentSongId) return;
   // Começou pelo YouTube só para não esperar: em vez de pular a música da galera, toca pelo servidor.
@@ -802,6 +891,18 @@ function onMobYtError(e) {
 function onMobYtStateChange(e) {
   if (typeof window === 'undefined' || !window.YT) return;
   const state = e.data;
+  // Play escondido: tocou sem som, então o iPhone contou o play. Pausa e volta o som para a música real.
+  if (ytPriming) {
+    if (state === window.YT.PlayerState.PLAYING) {
+      ytPriming = false;
+      ytPrimeCount++;
+      try { mobYtPlayer.pauseVideo(); mobYtPlayer.seekTo(0, true); mobYtPlayer.unMute(); } catch (err) {}
+      finishYtPriming();
+    }
+    return;
+  }
+  // Player parado entre músicas (ex.: pausa do play escondido): não mexe na música nem no status.
+  if (!ytFallbackActive) return;
   const btnResume = document.getElementById('btnResumeAudio');
   if (state === window.YT.PlayerState.PLAYING) {
     updatePlaybackStatus('playing');
