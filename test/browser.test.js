@@ -124,8 +124,21 @@ test('erro do player do YouTube avisa a galera e pula para a próxima', async ()
   b.handlers.get('stateUpdate')(state());
   await vm.runInContext('toggleJblMode()', b.context);
   const { sent } = spySocket(b);
+  // O player do YouTube está tocando esta música (reserva de quando o áudio falha).
+  vm.runInContext('activateYtFallback(latestState.currentSong)', b.context);
   vm.runInContext('onMobYtError({ data: 150 })', b.context);
   assert.deepEqual(JSON.parse(JSON.stringify(sent.at(-1))), { event: 'hostAction', data: { action: 'songFailed', payload: { songId: 'song' } } });
+});
+
+test('erro do player do YouTube parado (play escondido) não pula a música da galera', async () => {
+  const b = browser('mobile');
+  b.handlers.get('stateUpdate')(state());
+  await vm.runInContext('toggleJblMode()', b.context);
+  const { sent } = spySocket(b);
+  const before = sent.length;
+  vm.runInContext('ytPriming = true; onMobYtError({ data: 150 })', b.context);
+  vm.runInContext('onMobYtError({ data: 150 })', b.context);
+  assert.equal(sent.slice(before).filter(m => m.data?.action === 'songFailed').length, 0);
 });
 
 test('celular toca só áudio e ignora pedido de clipe', async () => {
