@@ -905,6 +905,19 @@ function syncJblPlayer(song) {
     return;
   }
 
+  // Começou pelo YouTube, mas o iPhone exige um toque no play e ninguém tocou: assim que o servidor
+  // tiver a música pronta, troca para o áudio dele, que começa sozinho (a festa não fica em silêncio).
+  if (!isNewSong && ytFallbackActive && instantYtSongId === song.id && song.streamReady) {
+    const ytState = mobYtPlayer && typeof mobYtPlayer.getPlayerState === 'function' ? mobYtPlayer.getPlayerState() : -1;
+    if (ytState === -1 || ytState === 5) {
+      instantYtSongId = null;
+      stopYtFallback();
+      jblCurrentSongId = null;
+      jblCurrentVideoId = null;
+      return syncJblPlayer(song);
+    }
+  }
+
   if (ytFallbackActive || jblMediaMode === 'youtube') {
     ytFallbackActive = true;
     if (isNewSong) activateYtFallback(song);
