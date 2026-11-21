@@ -133,6 +133,25 @@ test('pedido da galera passa na frente do preparo antecipado da rádio', () => {
   assert.equal(started.length, 2, 'sem vaga: espera, mas já foi para a frente da fila');
 });
 
+test('com uma vaga só, a rádio cede a vez para o pedido e volta para a fila', async () => {
+  const started = [];
+  const media = createMedia('fake', { maxConcurrent: 1, maxPending: 30,
+    run: (file, args, options, done) => {
+      const child = { id: args.at(-1).slice(-11), done, kill() { done(Object.assign(new Error('killed'), { killed: true })); } };
+      started.push(child);
+      return child;
+    } });
+  const radio = media.resolveStreamUrl('radioaaaaaa', 'audio', { background: true });
+  assert.deepEqual(started.map(c => c.id), ['radioaaaaaa']);
+  const asked = media.resolveStreamUrl('pedidaaaaaa', 'audio');
+  assert.deepEqual(started.map(c => c.id), ['radioaaaaaa', 'pedidaaaaaa'], 'pedido não espera a rádio');
+  started[1].done(null, 'https://example.test/pedida?expire=9999999999');
+  assert.ok((await asked).url.includes('pedida'));
+  assert.deepEqual(started.map(c => c.id), ['radioaaaaaa', 'pedidaaaaaa', 'radioaaaaaa'], 'rádio volta para a fila');
+  started[2].done(null, 'https://example.test/radio?expire=9999999999');
+  assert.ok((await radio).url.includes('radio'), 'quem esperava a rádio recebe o link');
+});
+
 test('túnel registrado por um PC expira se o PC parar de renovar', async () => {
   let now = 1_000_000;
   const started = [];

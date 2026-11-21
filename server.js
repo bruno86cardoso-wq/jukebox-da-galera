@@ -71,7 +71,9 @@ function createJukebox(options = {}) {
       || youtubei.findAlternative(videoId, { cookiesFile, search: searchYouTubeMusic }).catch(() => null);
   };
   // Com o caminho rápido, só um yt-dlp por vez: ele é o que mais gasta memória (limite de 512 MB).
-  const media = options.media || createMedia(YT_DLP_PATH, { fastResolver, maxConcurrent: fastResolver ? 1 : 2 });
+  const media = options.media || createMedia(YT_DLP_PATH, {
+    fastResolver, maxConcurrent: fastResolver ? 1 : 2, cacheDir: DATA_DIR ? path.join(DATA_DIR, 'yt-dlp-cache') : ''
+  });
   if (fastResolver && !options.media) setTimeout(() => require('./lib/youtubei').warmUp({ cookiesFile }), 2000).unref();
 
   // ==========================================
