@@ -25,18 +25,21 @@ provider?.on('error', error => console.warn('⚠️ Provedor de token indisponí
 provider?.on('exit', code => { if (!stopping) console.warn(`⚠️ Provedor de token encerrou (código ${code}). O app continua sem ele.`); });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => stop(0));
 
-// YT_PROXY (http://usuario:senha@host:porta): o app fala com o YouTube por um proxy residencial,
-// para o YouTube não recusar o servidor em nuvem. Vale para o YouTube.js, o yt-dlp e o download do
-// áudio (o link do YouTube só funciona no mesmo endereço que pediu). GitHub (baixar o yt-dlp) fica de fora.
+// YT_PROXY (http://usuario:senha@host:porta): o app consulta o YouTube por um proxy residencial,
+// para o YouTube não recusar o servidor em nuvem. Só a consulta do link passa pelo proxy (poucos KB):
+// o áudio (googlevideo), capas, busca e o download do yt-dlp saem direto, sem gastar o pacote.
+// YT_PROXY_AUDIO=1 manda também o áudio pelo proxy, se o YouTube recusar baixar por outro endereço.
 function appEnv() {
   const env = { ...process.env };
   const proxy = (process.env.YT_PROXY || '').trim();
   if (!proxy) return env;
+  const direct = ['localhost', '127.0.0.1', 'github.com', '.github.com', '.githubusercontent.com',
+    '.ytimg.com', 'music.youtube.com', 'suggestqueries.google.com'];
+  if (process.env.YT_PROXY_AUDIO !== '1') direct.push('.googlevideo.com');
   Object.assign(env, {
     NODE_USE_ENV_PROXY: '1',
     HTTPS_PROXY: proxy, HTTP_PROXY: proxy, https_proxy: proxy, http_proxy: proxy,
-    NO_PROXY: 'localhost,127.0.0.1,github.com,.github.com,.githubusercontent.com',
-    no_proxy: 'localhost,127.0.0.1,github.com,.github.com,.githubusercontent.com'
+    NO_PROXY: direct.join(','), no_proxy: direct.join(',')
   });
   try { console.log(`🛡️ Proxy ligado para o YouTube: ${new URL(proxy).host}`); }
   catch { console.warn('⚠️ YT_PROXY inválido (use http://usuario:senha@host:porta).'); }
