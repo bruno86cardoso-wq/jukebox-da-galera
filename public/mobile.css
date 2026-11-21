@@ -1924,6 +1924,25 @@ body:not(.can-control) .control-only { display: none !important; }
   border-style: dashed;
 }
 
+/* Cartão da música maior: capa, nome e artista em cima; botões grandes embaixo (fáceis de tocar na festa). */
+.top-mini-player-bar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px 14px 15px;
+}
+.top-mini-player-bar .mini-player-info { gap: 12px; }
+.top-mini-player-bar .mini-player-thumb { width: 58px; height: 58px; border-radius: 10px; }
+.top-mini-player-bar .mini-player-eq { font-size: 26px; }
+.top-mini-player-bar .mini-title { font-size: 16px; }
+.top-mini-player-bar .mini-artist { font-size: 13px; margin-top: 2px; }
+.top-mini-player-bar .mini-open-hint { font-size: 11px; margin-top: 4px; }
+.top-mini-player-bar .mini-player-controls { justify-content: center; gap: 22px; }
+.top-mini-player-bar .mini-ctrl-btn { width: 52px; height: 52px; }
+.top-mini-player-bar .mini-ctrl-btn svg { width: 24px; height: 24px; }
+.top-mini-player-bar .mini-ctrl-btn.play { width: 64px; height: 64px; }
+.top-mini-player-bar .mini-ctrl-btn.play svg { width: 30px; height: 30px; }
+
 .btn-back-home {
   width: 100%;
   margin-bottom: 12px;
