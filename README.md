@@ -25,6 +25,17 @@ Também dá para criar a festa direto no celular (**Criar uma festa neste celula
 - Ao reabrir `/tv`, o telão volta para a última festa que criou. **Começar uma festa nova** gera outro código.
 - Festas sem ninguém conectado são apagadas após 12 horas sem atividade.
 
+## Sala fixa (QR para imprimir)
+
+Para usar o mesmo QR em todas as festas, crie uma **sala fixa**: no celular, **📌 Criar sala fixa** na tela inicial; no telão, **⚙️ Festa → Sala fixa**. Você escolhe um nome e uma senha de anfitrião.
+
+- O nome vira o código da sala, sem acentos, espaços ou símbolos: "Festa do Bruno" vira `FESTADOBRUNO`. O QR leva para `/?festa=FESTADOBRUNO` e nunca muda. Imprima pelo botão **🖨️ Imprimir QR da sala**.
+- Quem lê o QR entra direto, só com o apelido. A senha é só do anfitrião: em outro aparelho, abra a sala e toque em **👑 Sou o anfitrião (senha)** (no celular, pelo código no topo); o telão pede a senha sozinho. Cada aparelho que entra com a senha fica lembrado.
+- A sala fixa nunca é apagada por inatividade. **Encerrar esta festa** ou **Iniciar uma festa nova** zera fila, ranking e conquistas, mas mantém o código, a senha e quem está conectado.
+- Cada pessoa pode criar a sua sala fixa, com nome próprio. Não dá para repetir um nome que já existe.
+- Imprima pelo app online (Render): o link de lá é fixo. O link do túnel do computador muda a cada reinício, e a página de impressão avisa quando for o caso.
+- A sala fica salva em `DATA_DIR`. Sem um disco persistente na hospedagem, ela some a cada nova publicação ou reinício (veja **Recuperação da festa**).
+
 ## Recursos da festa
 
 - **Dedicatória:** antes de pedir, escreva uma mensagem (até 60 caracteres). Ela aparece no telão quando a música toca; no Desafio, o autor só aparece depois da revelação.

@@ -925,6 +925,12 @@ async function openQrModal() {
   if (!socket.party.code) return;
   document.getElementById('qrModal').style.display = 'flex';
   document.getElementById('mobQrCode').textContent = socket.party.code;
+  const room = socket.party.room;
+  document.getElementById('mobFixedRoomActions').hidden = !room;
+  if (room) {
+    document.getElementById('mobFixedRoomName').textContent = room.name;
+    document.getElementById('btnHostLogin').hidden = socket.party.isHost;
+  }
   try {
     const res = await fetch('/api/qrcode?festa=' + encodeURIComponent(socket.party.code));
     const data = await res.json();
@@ -1015,7 +1021,7 @@ function showLogin(message) {
 
 // Entra na festa pelo código e registra o apelido. "silent" = reconexão automática.
 async function enterParty(code, name, silent = false) {
-  code = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  code = String(code || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!code) {
     if (!silent) showToast('Digite o código da festa (está no QR Code / Telão).');
     return false;
@@ -1111,6 +1117,46 @@ async function createPartyHere() {
     socket.claimPlayback().catch(() => {});
     // Sem abrir a janela do QR sozinha: quem quiser chamar a galera toca em "📲 Convidar".
   }
+}
+
+// ---------- Sala fixa ----------
+function toggleFixedRoomForm() {
+  const form = document.getElementById('fixedRoomForm');
+  form.hidden = !form.hidden;
+  if (!form.hidden) document.getElementById('fixedRoomNameInput').focus();
+}
+
+async function createFixedRoomHere(event) {
+  event.preventDefault();
+  const name = readLoginName();
+  if (!name) return;
+  const roomName = document.getElementById('fixedRoomNameInput').value.trim();
+  const password = document.getElementById('fixedRoomPasswordInput').value;
+  const created = await socket.createFixedRoom(roomName, password);
+  if (!created.ok) return showToast(created.error || 'Não foi possível criar a sala.');
+  document.getElementById('fixedRoomPasswordInput').value = '';
+  if (await finishEntry(created.code, name)) {
+    showToast(`📌 Sala ${created.room.name} criada! Código fixo ${created.code}. Toque no código lá em cima para imprimir o QR.`);
+    jblModeActive = true;
+    updateJblUi();
+    if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {});
+    playJblMedia();
+    socket.claimPlayback().catch(() => {});
+  }
+}
+
+function printFixedRoomQrMobile() {
+  if (socket.party.room) printRoomQr(socket.party.code, socket.party.room.name);
+}
+
+async function hostLoginMobile() {
+  if (!socket.party.room) return;
+  const password = prompt(`Senha do anfitrião da sala ${socket.party.room.name}:`);
+  if (!password) return;
+  const result = await socket.hostLogin(socket.party.code, password);
+  if (!result.ok) return showToast(result.error || 'Senha errada.');
+  showToast('👑 Agora você é o anfitrião desta sala.');
+  closeQrModal();
 }
 
 socket.onPartyLost = result => showLogin(result?.error || 'A festa não existe mais. Entre em outra ou crie uma nova.');
@@ -2118,6 +2164,8 @@ function endCurrentParty() {
 
 socket.on('partyEnded', ({ summary }) => {
   try {
+    // Sala fixa continua: a galera fica nela para a próxima festa.
+    if (socket.party.room) return showSummary(summary, true);
     localStorage.removeItem('jukebox_last_party');
     localStorage.removeItem('jukebox_last_party_created');
   } catch {}
@@ -2160,7 +2208,11 @@ function showSummary(summary, isEnded = false) {
   if (endedBox) {
     if (isEnded) {
       endedBox.style.display = 'flex';
-      if (lastYou?.isHost) {
+      if (socket.party.room) {
+        endedBox.innerHTML = `
+          <button type="button" class="btn-new-party-primary" onclick="closeSummary()">🎉 Continuar na sala (a fila recomeça)</button>
+        `;
+      } else if (lastYou?.isHost) {
         endedBox.innerHTML = `
           <button type="button" class="btn-new-party-primary" onclick="createPartyHere()">🎉 Iniciar Nova Festa Agora</button>
         `;

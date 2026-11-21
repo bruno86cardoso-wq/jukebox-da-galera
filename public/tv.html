@@ -269,6 +269,19 @@
           <img id="hostQrImage" alt="QR do anfitrião" hidden />
         </div>
         <div class="settings-block">
+          <strong>📌 Sala fixa</strong>
+          <div id="fixedRoomInfo" hidden>
+            <small>Sala <b id="fixedRoomName"></b>: o QR nunca muda. Imprima e use em todas as festas.</small>
+            <button class="btn-action" onclick="printFixedRoomQr()">🖨️ Imprimir QR da sala</button>
+          </div>
+          <form id="fixedRoomForm" onsubmit="createFixedRoomTv(event)">
+            <small>Dê um nome e uma senha: o QR fica sempre o mesmo, para imprimir. Com a senha você vira anfitrião em qualquer aparelho.</small>
+            <input id="fixedRoomNameInput" class="settings-input" type="text" maxlength="40" placeholder="Nome da sala (ex.: Bruno)" required />
+            <input id="fixedRoomPasswordInput" class="settings-input" type="password" maxlength="64" minlength="4" placeholder="Senha do anfitrião" required />
+            <button class="btn-action" type="submit">Criar sala fixa</button>
+          </form>
+        </div>
+        <div class="settings-block">
           <strong>🎉 Festa</strong>
           <button class="btn-action" onclick="showSummaryToAll()">📊 Mostrar resumo no telão e nos celulares</button>
           <button id="btnEndPartyTv" class="btn-action danger" onclick="endCurrentPartyTv()">🛑 Encerrar esta festa</button>

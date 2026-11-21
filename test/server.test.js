@@ -331,3 +331,61 @@ test('música com erro avisa a galera e segue para a próxima sem ninguém ter p
   assert.equal(info.title, 'Música de teste');
   assert.equal(f.jukebox.getPublicState(host.code).currentSong.videoId, 'bbbbbbbbbbb');
 });
+
+test('sala fixa: código pelo nome, senha de anfitrião, sobrevive a reinício e recomeça no mesmo QR', async t => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jukebox-test-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const first = await fixture(t, { dataDir });
+  const owner = await first.client();
+  assert.equal((await owner.call('createFixedRoom', { name: 'Jo', password: '1234' })).ok, false, 'nome curto demais');
+  assert.equal((await owner.call('createFixedRoom', { name: 'João', password: '12' })).ok, false, 'senha curta demais');
+  const created = await owner.call('createFixedRoom', { name: 'Festa do João', password: 'segredo' });
+  assert.equal(created.ok, true);
+  assert.equal(created.code, 'FESTADOJOAO');
+  assert.equal((await first.client().then(c => c.call('createFixedRoom', { name: 'festa do joao', password: 'outra' }))).ok, false, 'nome repetido');
+
+  // Convidado entra direto pelo código do QR (sem senha) e não vira anfitrião.
+  const guest = await first.client();
+  const joined = await guest.call('joinParty', { code: 'festadojoao' });
+  assert.equal(joined.ok, true);
+  assert.equal(joined.isHost, false);
+  assert.equal(joined.room.name, 'Festa do João');
+  await guest.call('registerPlayer', { name: 'Convidada' });
+  await guest.call('addSong', { song: song() });
+  assert.equal((await guest.call('hostLogin', { code: 'FESTADOJOAO', password: 'errada' })).ok, false);
+  assert.equal(first.jukebox.getPublicState('FESTADOJOAO').roomName, 'Festa do João');
+
+  // Reinício: a sala continua, e a senha dá o controle em outro aparelho.
+  await first.jukebox.stop();
+  const second = await fixture(t, { dataDir });
+  const otherDevice = await second.client();
+  assert.equal((await otherDevice.call('joinParty', { code: 'FESTADOJOAO' })).isHost, false);
+  const login = await otherDevice.call('hostLogin', { code: 'FESTADOJOAO', password: 'segredo' });
+  assert.equal(login.ok, true);
+  assert.equal((await otherDevice.call('hostAction', { action: 'setMode', payload: { mode: 'desafio' } })).ok, true);
+  const later = await second.client(otherDevice.token);
+  assert.equal((await later.call('joinParty', { code: 'FESTADOJOAO', hostKey: login.hostKey })).isHost, true, 'a chave dada pela senha fica valendo');
+  assert.equal((await later.call('joinParty', { code: 'FESTADOJOAO', hostKey: created.hostKey })).isHost, true, 'a chave de quem criou continua valendo');
+
+  // Festa nova na mesma sala: zera a fila, mantém código, nome e quem está conectado.
+  const back = await second.client(guest.token);
+  await back.call('joinParty', { code: 'FESTADOJOAO' });
+  await back.call('registerPlayer', { name: 'Convidada' });
+  assert.equal((await back.call('resetRoom', {})).ok, false, 'convidado não recomeça a sala');
+  assert.equal((await later.call('resetRoom', {})).ok, true);
+  const state = second.jukebox.getPublicState('FESTADOJOAO');
+  assert.equal(state.currentSong, null);
+  assert.equal(state.queue.length, 0);
+  assert.equal(state.mode, 'livre');
+  assert.equal(state.roomName, 'Festa do João');
+  assert.ok(state.players.some(p => p.name === 'Convidada'));
+  assert.equal((await back.call('addSong', { song: song() })).ok, true, 'quem estava conectado segue pedindo');
+  await settle();
+
+  // Encerrar a festa numa sala fixa não apaga a sala.
+  await later.call('hostAction', { action: 'endParty' });
+  await new Promise(resolve => setTimeout(resolve, 2200));
+  assert.equal(second.jukebox.getPublicState('FESTADOJOAO').queue.length, 0);
+  assert.equal(second.jukebox.getPublicState('FESTADOJOAO').currentSong, null);
+  assert.equal((await second.client().then(c => c.call('joinParty', { code: 'FESTADOJOAO' }))).ok, true);
+});

@@ -1751,6 +1751,11 @@ body:not(.can-control) .control-only { display: none !important; }
   font-weight: 800;
   cursor: pointer;
 }
+.fixed-room-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; text-align: left; }
+.fixed-room-form[hidden], .fixed-room-actions[hidden] { display: none; }
+.fixed-room-form small, .fixed-room-actions small { font-size: 12px; color: var(--text-muted); }
+.btn-secondary + .btn-secondary { margin-top: 8px; }
+.fixed-room-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .login-foot { display: block; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
 
 .party-pill {

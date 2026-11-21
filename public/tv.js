@@ -14,6 +14,9 @@ let isPrimaryTv = false;
 let lastYou = null;
 let initialPartyCode = readPartyFromUrl() || (() => {
   try {
+    // Sala fixa deste telão: abre sempre nela, sem prazo.
+    const fixed = localStorage.getItem('jukebox_fixed_room');
+    if (fixed && getHostKey(fixed)) return fixed;
     const last = localStorage.getItem('jukebox_last_party');
     const lastCreated = Number(localStorage.getItem('jukebox_last_party_created') || 0);
     // Se a última festa foi criada há mais de 10 horas, abre uma nova limpa
@@ -72,7 +75,8 @@ async function claimTv() {
 async function ensureParty() {
   const code = socket.party.code || initialPartyCode;
   if (code) {
-    const joined = await socket.joinParty(code);
+    let joined = await socket.joinParty(code);
+    if (joined.ok && joined.room && !joined.isHost) joined = await askRoomPassword(joined);
     if (joined.ok) return partyReady(joined);
     partyNotice('A festa ' + code + ' não existe mais. Criando uma nova…');
   }
@@ -82,8 +86,52 @@ async function ensureParty() {
   return false;
 }
 
+// Sala fixa aberta num telão novo: com a senha, este aparelho vira anfitrião.
+async function askRoomPassword(joined) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const password = prompt(`Sala ${joined.room.name}: digite a senha do anfitrião para tocar aqui.
+(Cancele para só acompanhar.)`);
+    if (!password) return joined;
+    const result = await socket.hostLogin(joined.code, password);
+    if (result.ok) return result;
+    alert(result.error || 'Senha errada.');
+  }
+  return joined;
+}
+
+function updateFixedRoomUi() {
+  const room = socket.party.room;
+  const info = document.getElementById('fixedRoomInfo');
+  const form = document.getElementById('fixedRoomForm');
+  if (!info || !form) return;
+  info.hidden = !room;
+  form.hidden = Boolean(room) || !socket.party.isHost;
+  if (room) document.getElementById('fixedRoomName').textContent = room.name;
+}
+
+async function createFixedRoomTv(event) {
+  event.preventDefault();
+  const name = document.getElementById('fixedRoomNameInput').value.trim();
+  const password = document.getElementById('fixedRoomPasswordInput').value;
+  const created = await socket.createFixedRoom(name, password);
+  if (!created.ok) return partyNotice(created.error || 'Não foi possível criar a sala.');
+  document.getElementById('fixedRoomPasswordInput').value = '';
+  partyReady(created);
+  await claimTv();
+  partyNotice(`📌 Sala ${created.room.name} criada! Código fixo: ${created.code}. Imprima o QR aqui nas configurações.`);
+}
+
+function printFixedRoomQr() {
+  if (socket.party.room) printRoomQr(socket.party.code, socket.party.room.name);
+}
+
 function partyReady(result) {
   initialPartyCode = result.code;
+  updateFixedRoomUi();
+  try {
+    if (result.room && result.isHost) localStorage.setItem('jukebox_fixed_room', result.code);
+    else if (!result.room && result.isHost) localStorage.removeItem('jukebox_fixed_room');
+  } catch {}
   setPartyInUrl(result.code);
   for (const id of ['partyCodeBadge', 'qrPartyCode', 'settingsCode']) {
     const el = document.getElementById(id);
@@ -913,6 +961,12 @@ async function startNewParty() {
     return;
   }
   newPartyArmed = false;
+  if (socket.party.room) {
+    const reset = await socket.resetRoom();
+    if (!reset.ok) return partyNotice(reset.error || 'Não foi possível recomeçar a sala.');
+    closeSettings();
+    return partyNotice('✨ Festa nova na sala ' + socket.party.room.name + '. O QR continua o mesmo.');
+  }
   const created = await socket.createParty();
   if (!created.ok) return;
   partyReady(created);

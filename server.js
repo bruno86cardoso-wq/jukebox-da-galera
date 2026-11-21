@@ -10,11 +10,12 @@ const { randomBytes } = require('node:crypto');
 const { searchYouTubeMusic, searchMoreSongs, getSearchSuggestions, getRadioSongs } = require('./lib/catalog');
 const { createMedia } = require('./lib/media');
 const { createPersistence } = require('./lib/persistence');
-const { createParty, generateCode, normalizeCode, validCode, validSaved, hashKey } = require('./lib/party');
-const { isRecord, validVideoId, playerIdForToken, createRateLimiter } = require('./lib/security');
+const { createParty, generateCode, normalizeCode, validCode, validSaved, hashKey, hashPassword, roomCodeFromName } = require('./lib/party');
+const { isRecord, validVideoId, text, playerIdForToken, createRateLimiter } = require('./lib/security');
 
 const MAX_PARTIES = 100;
-const PARTY_IDLE_MS = 12 * 60 * 60 * 1000; // festa vazia some depois de 12 horas
+const PARTY_IDLE_MS = 12 * 60 * 60 * 1000; // festa vazia some depois de 12 horas (sala fixa nunca some)
+const MAX_FIXED_ROOMS = 100;
 
 function createJukebox(options = {}) {
   const app = express();
@@ -147,12 +148,12 @@ function createJukebox(options = {}) {
 
   function room(code) { return `party:${code}`; }
 
-  function setupParty(code, hostKeyHash, saved = null) {
+  function setupParty(code, hostKeyHash, saved = null, roomSetup = {}) {
     const entry = { sockets: new Set(), activeTvSocketId: null };
     entry.persistence = createPersistence(PARTIES_DIR ? path.join(PARTIES_DIR, `${code}.json`) : null,
       () => entry.party.serialize(), validSaved);
     entry.party = createParty({
-      code, hostKeyHash, saved, media, voteDelaySeconds: options.voteDelaySeconds,
+      code, hostKeyHash, saved, ...roomSetup, media, voteDelaySeconds: options.voteDelaySeconds,
       radio: options.radio === undefined ? getRadioSongs : options.radio,
       lookupDuration: options.lookupDuration !== undefined ? options.lookupDuration
         : (process.env.YTJS_ENGINE === '0' ? null : videoId => require('./lib/youtubei').videoDuration(videoId, { cookiesFile })),
@@ -178,6 +179,43 @@ function createJukebox(options = {}) {
     return { code, hostKey };
   }
 
+  // Sala fixa: o nome vira o código do QR (que pode ser impresso) e a senha dá o controle de anfitrião.
+  function newFixedRoom(name, password) {
+    name = text(name, 40);
+    const code = roomCodeFromName(name);
+    if (code.length < 3 || code.length > 20) throw new Error('O nome da sala precisa ter de 3 a 20 letras ou números.');
+    if (typeof password !== 'string' || password.length < 4 || password.length > 64) throw new Error('A senha precisa ter de 4 a 64 caracteres.');
+    if (parties.has(code)) throw new Error(`Já existe uma sala com o código ${code}. Escolha outro nome.`);
+    if ([...parties.values()].filter(e => e.party.room).length >= MAX_FIXED_ROOMS) throw new Error('O servidor já tem salas fixas demais.');
+    const hostKey = randomBytes(24).toString('hex');
+    const entry = setupParty(code, hashKey(hostKey), null, { room: { name, passwordHash: hashPassword(password) } });
+    entry.persistence.flush();
+    log(`📌 Sala fixa criada: ${code} (${name})`);
+    return { code, hostKey };
+  }
+
+  // Próxima festa na mesma sala fixa: zera fila, ranking e conquistas; mantém código, senha e anfitriões.
+  // Quem está conectado continua na sala, com o mesmo nome.
+  function resetFixedRoom(code) {
+    const old = parties.get(code);
+    if (!old?.party.room) return;
+    const people = new Map();
+    for (const id of old.sockets) {
+      const playerId = sessions.get(id)?.playerId;
+      if (playerId && old.party.playerName(playerId)) people.set(playerId, old.party.playerName(playerId));
+    }
+    try { old.persistence.remove(); } catch {}
+    const fresh = setupParty(code, old.party.roomSetup.hostKeyHash, null, old.party.roomSetup);
+    fresh.sockets = old.sockets;
+    fresh.activeTvSocketId = old.activeTvSocketId;
+    old.sockets = new Set();
+    for (const [playerId, name] of people) {
+      try { fresh.party.join(playerId, name); fresh.party.setConnected(playerId, true); } catch {}
+    }
+    log(`🔄 Sala fixa ${code}: festa nova começou.`);
+    broadcastState(fresh);
+  }
+
   function removeParty(code) {
     const entry = parties.get(code);
     if (!entry) return;
@@ -188,14 +226,29 @@ function createJukebox(options = {}) {
 
   function cleanupParties(force = false) {
     const now = Date.now();
-    const idle = [...parties.entries()].filter(([, e]) => e.sockets.size === 0)
+    const idle = [...parties.entries()].filter(([, e]) => e.sockets.size === 0 && !e.party.room)
       .sort((a, b) => a[1].party.lastActivity - b[1].party.lastActivity);
     for (const [code, entry] of idle) {
       if (now - entry.party.lastActivity > PARTY_IDLE_MS || (force && parties.size >= MAX_PARTIES)) removeParty(code);
     }
   }
 
+  // Confere ao ligar se dá para gravar as festas (no Render, o disco pode vir sem permissão para o app).
+  function checkStorage() {
+    if (!PARTIES_DIR) return;
+    try {
+      fs.mkdirSync(PARTIES_DIR, { recursive: true });
+      const probe = path.join(PARTIES_DIR, '.write-test');
+      fs.writeFileSync(probe, 'ok');
+      fs.unlinkSync(probe);
+      console.log(`💾 Festas salvas em ${PARTIES_DIR}`);
+    } catch (error) {
+      console.error(`❌ Sem permissão para salvar festas em ${PARTIES_DIR} (${error.code || error.message}). Salas fixas somem ao reiniciar.`);
+    }
+  }
+
   function loadParties() {
+    checkStorage();
     if (!PARTIES_DIR || !fs.existsSync(PARTIES_DIR)) return;
     for (const file of fs.readdirSync(PARTIES_DIR)) {
       if (!file.endsWith('.json')) continue;
@@ -205,6 +258,7 @@ function createJukebox(options = {}) {
         const persistence = createPersistence(path.join(PARTIES_DIR, file), () => null, validSaved);
         const saved = persistence.load();
         if (saved && saved.code === code) setupParty(code, saved.hostKeyHash, saved);
+        else if (saved) console.warn(`⚠️ ${file}: o código salvo não confere com o nome do arquivo.`);
       } catch (error) {
         console.warn(`⚠️ ${error.message}`);
       }
@@ -218,7 +272,8 @@ function createJukebox(options = {}) {
   }
 
   function broadcastState(entry) {
-    if (stopping) return;
+    // Festa substituída (sala fixa que recomeçou): a antiga não salva nem transmite mais nada.
+    if (stopping || parties.get(entry.party.code) !== entry) return;
     entry.persistence.schedule();
     const base = entry.party.publicState(connectionFor(entry));
     for (const id of entry.sockets) {
@@ -300,8 +355,11 @@ function createJukebox(options = {}) {
       let url = inviteUrl(entry.party, mode);
       // Link de anfitrião: só gera se quem pede já tem a chave.
       if (typeof req.query.chave === 'string' && entry.party.isHostKey(req.query.chave)) url += `&chave=${encodeURIComponent(req.query.chave)}`;
-      const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 320, color: { dark: '#0f172a', light: '#ffffff' } });
-      res.json({ url, code: entry.party.code, dataUrl, connection: connectionFor(entry) });
+      // Para imprimir: maior e com margem, para a câmera ler de longe.
+      const print = req.query.print === '1';
+      const dataUrl = await QRCode.toDataURL(url, { margin: print ? 2 : 1, width: print ? 800 : 320, color: { dark: '#0f172a', light: '#ffffff' } });
+      // stableUrl: o link continua o mesmo depois de reiniciar (nuvem). O túnel do PC muda a cada vez.
+      res.json({ url, code: entry.party.code, dataUrl, stableUrl: Boolean(CLOUD_PUBLIC_URL), connection: connectionFor(entry) });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -404,6 +462,32 @@ function createJukebox(options = {}) {
       reply({ ok: true, ...newParty() });
     }, 10);
 
+    on('createFixedRoom', ({ name, password }, reply) => {
+      reply({ ok: true, ...newFixedRoom(name, password) });
+    }, 5);
+
+    // Entrar como anfitrião de uma sala fixa com a senha (de qualquer aparelho).
+    on('hostLogin', ({ code, password }, reply) => {
+      code = normalizeCode(code);
+      const entry = parties.get(code);
+      if (!entry?.party.room) throw new Error('Esta festa não é uma sala fixa.');
+      if (!entry.party.checkPassword(password)) throw new Error('Senha errada.');
+      const hostKey = randomBytes(24).toString('hex');
+      entry.party.addHostKey(hostKey);
+      if (session.code === code) session.isHost = true;
+      log(`👑 [${code}] Anfitrião entrou com a senha.`);
+      reply({ ok: true, code, hostKey });
+      if (session.code === code) broadcastState(entry);
+    }, 10);
+
+    on('resetRoom', (_, reply) => {
+      const entry = current();
+      if (!session.isHost) throw new Error('Só o anfitrião pode começar uma festa nova.');
+      if (!entry.party.room) throw new Error('Esta festa não é uma sala fixa.');
+      resetFixedRoom(entry.party.code);
+      reply({ ok: true });
+    }, 10);
+
     on('joinParty', ({ code, hostKey }, reply) => {
       code = normalizeCode(code);
       const entry = parties.get(code);
@@ -413,7 +497,7 @@ function createJukebox(options = {}) {
       session.isHost = entry.party.isHostKey(hostKey);
       entry.sockets.add(socket.id);
       socket.join(room(code));
-      reply({ ok: true, code, isHost: session.isHost });
+      reply({ ok: true, code, isHost: session.isHost, room: entry.party.room });
       broadcastState(entry);
     }, 30);
 
@@ -479,7 +563,8 @@ function createJukebox(options = {}) {
       });
       if (action === 'endParty') {
         const code = entry.party.code;
-        setTimeout(() => removeParty(code), 2000);
+        // Sala fixa não some: recomeça vazia, pronta para a próxima festa.
+        setTimeout(() => entry.party.room ? resetFixedRoom(code) : removeParty(code), 2000);
       }
       reply({ ok: true });
     });

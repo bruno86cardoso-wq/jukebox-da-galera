@@ -1259,3 +1259,15 @@ body.reaction-burst .main-grid { animation: shake 0.5s ease 2; }
   font-size: 52px;
   color: #fbbf24;
 }
+
+/* Sala fixa */
+#fixedRoomForm, #fixedRoomInfo { display: flex; flex-direction: column; gap: 6px; }
+#fixedRoomForm[hidden], #fixedRoomInfo[hidden] { display: none; }
+.settings-input {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glow);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+}

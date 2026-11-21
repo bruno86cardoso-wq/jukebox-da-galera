@@ -60,11 +60,11 @@ function createPartySocket() {
   }
 
   // ---------- Festa atual (código + chave do anfitrião) ----------
-  socket.party = { code: null, hostKey: null, isHost: false };
+  socket.party = { code: null, hostKey: null, isHost: false, room: null };
   socket.joinParty = async (code, hostKey = getHostKey(code)) => {
     const result = await request('joinParty', { code, hostKey: hostKey || undefined });
     if (result.ok) {
-      socket.party = { code: result.code, hostKey: result.isHost ? hostKey : null, isHost: result.isHost };
+      socket.party = { code: result.code, hostKey: result.isHost ? hostKey : null, isHost: result.isHost, room: result.room || null };
       try {
         localStorage.setItem('jukebox_last_party', result.code);
         if (!localStorage.getItem('jukebox_last_party_created')) {
@@ -81,6 +81,21 @@ function createPartySocket() {
     try { localStorage.setItem('jukebox_last_party_created', Date.now()); } catch {}
     return socket.joinParty(created.code, created.hostKey);
   };
+  // Sala fixa: nome próprio (vira o código do QR) e senha do anfitrião.
+  socket.createFixedRoom = async (name, password) => {
+    const created = await request('createFixedRoom', { name, password });
+    if (!created.ok) return created;
+    saveHostKey(created.code, created.hostKey);
+    return socket.joinParty(created.code, created.hostKey);
+  };
+  // Vira anfitrião da sala fixa com a senha; o aparelho guarda a chave e não pede de novo.
+  socket.hostLogin = async (code, password) => {
+    const result = await request('hostLogin', { code, password });
+    if (!result.ok) return result;
+    saveHostKey(result.code, result.hostKey);
+    return socket.joinParty(result.code, result.hostKey);
+  };
+  socket.resetRoom = () => request('resetRoom', {});
   // Ao reconectar, volta para a mesma festa antes de qualquer outro evento.
   socket.on('connect', () => {
     if (!socket.party.code) return;
@@ -150,10 +165,35 @@ function saveHostKey(code, key) {
   try { localStorage.setItem('jukebox_host_keys', JSON.stringify(keys)); } catch {}
 }
 
+/** Página para imprimir o QR da sala fixa (abre a janela antes, para o navegador não bloquear). */
+async function printRoomQr(code, name) {
+  const win = window.open('', '_blank');
+  if (!win) return partyNotice('Libere as janelas pop-up para imprimir o QR.');
+  win.document.write('<p style="font-family:sans-serif">Preparando o QR…</p>');
+  try {
+    const res = await fetch('/api/qrcode?festa=' + encodeURIComponent(code) + '&mode=auto&print=1');
+    const data = await res.json();
+    if (!res.ok || !data.dataUrl) throw new Error(data.error || 'erro');
+    const esc = value => String(value || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    win.document.open();
+    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>QR da sala ${esc(code)}</title>
+<style>body{font-family:system-ui,sans-serif;text-align:center;margin:40px;color:#111}h1{font-size:40px;margin:0 0 6px}
+p{font-size:20px;margin:6px 0}img{width:min(80vw,460px);image-rendering:pixelated;margin:20px 0}
+.code{font-size:28px;font-weight:800;letter-spacing:4px}.url{font-family:monospace;font-size:14px;color:#444;word-break:break-all}
+button{font-size:18px;padding:10px 24px;margin-top:16px}@media print{button{display:none}}</style></head><body>
+<h1>🎵 ${esc(name || code)}</h1><p>Aponte a câmera do celular e peça sua música!</p>
+<img src="${data.dataUrl}" alt="QR Code da sala">${data.stableUrl ? '' : '<p style="color:#b91c1c;font-weight:700">⚠️ Este link é deste computador e pode mudar quando ele reiniciar. Para um QR que vale para sempre, imprima pelo app online.</p>'}<p class="code">${esc(code)}</p><p class="url">${esc(data.url)}</p>
+<button onclick="print()">🖨️ Imprimir</button></body></html>`);
+    win.document.close();
+  } catch {
+    win.document.body.textContent = 'Não foi possível gerar o QR. Tente de novo.';
+  }
+}
+
 /** Lê ?festa= e ?chave= da URL, guarda a chave e tira ela da barra de endereço. */
 function readPartyFromUrl() {
   const params = new URLSearchParams(window.location.search || '');
-  const code = (params.get('festa') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || null;
+  const code = (params.get('festa') || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || null;
   const key = params.get('chave');
   if (code && key) {
     saveHostKey(code, key);
