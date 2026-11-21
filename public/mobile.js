@@ -689,11 +689,29 @@ if (typeof window !== 'undefined') {
   loadYtIframeApi();
 }
 
+// Aviso "dê play": só quando o player do YouTube parou esperando um toque (o iPhone exige nas
+// primeiras músicas). Some assim que a música começa ou deixa de ir pelo YouTube.
+let ytWaitTimer = null;
+function showYtPlayHint(show) {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+  const hint = document.getElementById('ytPlayHint');
+  if (hint) hint.hidden = !show;
+}
+function checkYtWaiting() {
+  if (!ytFallbackActive || !jblModeActive || latestState?.isPaused) return showYtPlayHint(false);
+  const state = mobYtPlayer && typeof mobYtPlayer.getPlayerState === 'function' ? mobYtPlayer.getPlayerState() : -1;
+  // -1: não começou; 5: carregado, esperando o play. Tocando (1) ou carregando (3) não é espera.
+  showYtPlayHint(state === -1 || state === 5);
+}
+
 function activateYtFallback(song) {
   if (!song || !jblModeActive) return;
   pendingYtFallbackSong = song;
   ytFallbackActive = true;
   requestScreenWakeLock();
+  showYtPlayHint(false);
+  clearTimeout(ytWaitTimer);
+  ytWaitTimer = setTimeout(checkYtWaiting, 3000);
 
   if (jblVideoEl) {
     try {
@@ -804,6 +822,8 @@ function onMobYtStateChange(e) {
   const state = e.data;
   const btnResume = document.getElementById('btnResumeAudio');
   if (state === window.YT.PlayerState.PLAYING) {
+    clearTimeout(ytWaitTimer);
+    showYtPlayHint(false);
     updatePlaybackStatus('playing');
     jblPlaybackState = 'playing';
     if (btnResume) btnResume.hidden = true;
@@ -834,6 +854,7 @@ function onMobYtStateChange(e) {
       btnResume.textContent = '▶ Continuar música';
     }
   } else if (state === 5 /* CUED - Autoplay bloqueado pelo navegador */) {
+    if (ytFallbackActive && !latestState?.isPaused) showYtPlayHint(true);
     updatePlaybackStatus('blocked');
     if (btnResume) {
       btnResume.hidden = false;
@@ -859,6 +880,8 @@ const jblRecovery = attachMediaRecovery(jblAudioEl, {
 
 function stopYtFallback() {
   ytFallbackActive = false;
+  clearTimeout(ytWaitTimer);
+  showYtPlayHint(false);
   clearInterval(ytProgressTimer);
   if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
     try { mobYtPlayer.stopVideo(); } catch (err) {}
@@ -872,6 +895,7 @@ function syncJblPlayer(song) {
   const box = document.getElementById('jblPlayerBox');
   if (!jblModeActive || !song) {
     box.style.display = 'none';
+    showYtPlayHint(false);
     jblRecovery.reset();
     jblCurrentSongId = null;
     jblCurrentVideoId = null;
