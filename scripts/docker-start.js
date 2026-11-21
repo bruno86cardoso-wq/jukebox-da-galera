@@ -25,6 +25,24 @@ provider?.on('error', error => console.warn('⚠️ Provedor de token indisponí
 provider?.on('exit', code => { if (!stopping) console.warn(`⚠️ Provedor de token encerrou (código ${code}). O app continua sem ele.`); });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => stop(0));
 
+// YT_PROXY (http://usuario:senha@host:porta): o app fala com o YouTube por um proxy residencial,
+// para o YouTube não recusar o servidor em nuvem. Vale para o YouTube.js, o yt-dlp e o download do
+// áudio (o link do YouTube só funciona no mesmo endereço que pediu). GitHub (baixar o yt-dlp) fica de fora.
+function appEnv() {
+  const env = { ...process.env };
+  const proxy = (process.env.YT_PROXY || '').trim();
+  if (!proxy) return env;
+  Object.assign(env, {
+    NODE_USE_ENV_PROXY: '1',
+    HTTPS_PROXY: proxy, HTTP_PROXY: proxy, https_proxy: proxy, http_proxy: proxy,
+    NO_PROXY: 'localhost,127.0.0.1,github.com,.github.com,.githubusercontent.com',
+    no_proxy: 'localhost,127.0.0.1,github.com,.github.com,.githubusercontent.com'
+  });
+  try { console.log(`🛡️ Proxy ligado para o YouTube: ${new URL(proxy).host}`); }
+  catch { console.warn('⚠️ YT_PROXY inválido (use http://usuario:senha@host:porta).'); }
+  return env;
+}
+
 function ping() {
   return new Promise(resolve => {
     const request = http.get('http://127.0.0.1:4416/ping', { timeout: 1000 }, response => {
@@ -47,7 +65,7 @@ function ping() {
   if (stopping) return;
   // O Node não enxerga o limite de memória do servidor (512 MB) e deixa a memória crescer sem limpar;
   // com um teto explícito ele limpa a tempo e sobra espaço para o yt-dlp.
-  app = spawn(process.execPath, ['--max-old-space-size=224', 'server.js'], { cwd: '/app', stdio: 'inherit' });
+  app = spawn(process.execPath, ['--max-old-space-size=224', 'server.js'], { cwd: '/app', stdio: 'inherit', env: appEnv() });
   app.on('error', () => stop(1));
   app.on('exit', code => stop(code || 0));
 })().catch(error => { console.error(error.message); stop(1); });

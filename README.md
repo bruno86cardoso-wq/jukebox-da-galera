@@ -72,6 +72,7 @@ Defina as variáveis no terminal antes de iniciar, ou nas configurações da hos
 | `YTDLP_CLIENT` | Cliente do extrator; `mweb` habilita a tentativa com validação de origem. Depende da disponibilidade no provedor. |
 | `YTDLP_PLUGIN_DIR` | Diretório de plugins do extrator; configurado pela imagem Docker. |
 | `MEDIA_DIAGNOSTICS_VIDEO` | ID opcional de vídeo para testar extração nativa no início, mesmo quando há `MEDIA_ORIGIN`. Remova após o diagnóstico. |
+| `YT_PROXY` | Proxy residencial para falar com o YouTube (`http://usuario:senha@host:porta`), quando o YouTube recusa o servidor em nuvem. Use sessão fixa (sticky) de 10 a 30 minutos: o link do áudio só funciona no mesmo endereço que o pediu. Só vale na imagem Docker. |
 | `TRUST_PROXY_HOPS` | Número de proxies confiáveis à frente do servidor, somente se conhecido. Afeta limites HTTP por IP. |
 
 A chave de anfitrião e a identidade de participante ficam no navegador. Limpar os dados ou usar outro endereço cria uma nova identidade; o anfitrião pode recuperar o controle pelo QR do anfitrião em outro aparelho.
