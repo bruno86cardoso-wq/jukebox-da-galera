@@ -1945,21 +1945,42 @@ body:not(.can-control) .control-only { display: none !important; }
 
 /* Aviso de play: o iPhone exige um toque nas primeiras músicas pelo YouTube. */
 .yt-play-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 4px 4px 4px 0;
   border-radius: 12px;
   border: 1px solid rgba(250, 204, 21, 0.55);
   background: linear-gradient(135deg, rgba(250, 204, 21, 0.18), rgba(249, 115, 22, 0.22));
+  animation: ytHintPulse 1.6s ease-in-out infinite;
+}
+.yt-play-hint[hidden] { display: none; }
+.yt-play-hint button {
+  background: none;
+  border: none;
   color: #fde68a;
   font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.yt-play-hint-text {
+  flex: 1;
+  padding: 7px 4px 7px 12px;
   font-size: 13px;
   font-weight: 800;
   line-height: 1.3;
-  cursor: pointer;
-  animation: ytHintPulse 1.6s ease-in-out infinite;
-  -webkit-tap-highlight-color: transparent;
+  text-align: center;
 }
-.yt-play-hint[hidden] { display: none; }
+.yt-play-hint-close {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 900;
+}
+.yt-play-hint-close:active { background: rgba(255, 255, 255, 0.12); }
 @keyframes ytHintPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.0); }
   50% { box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.25); }

@@ -199,6 +199,7 @@ function toggleJblPlayPause() {
     return;
   }
   if (ytFallbackActive && mobYtPlayer && typeof mobYtPlayer.getPlayerState === 'function') {
+    markYtTapped();
     const s = mobYtPlayer.getPlayerState();
     if (s === 1) { // PLAYING
       mobYtPlayer.pauseVideo();
@@ -274,6 +275,7 @@ async function playJblMedia() {
 function resumeJblPlayback() {
   if (!jblModeActive) return;
   if (ytFallbackActive) {
+    markYtTapped();
     if (mobYtPlayer && typeof mobYtPlayer.playVideo === 'function') {
       try { mobYtPlayer.playVideo(); } catch (e) {}
     }
@@ -689,19 +691,39 @@ if (typeof window !== 'undefined') {
   loadYtIframeApi();
 }
 
-// Aviso "dê play": só quando o player do YouTube parou esperando um toque (o iPhone exige nas
-// primeiras músicas). Some assim que a música começa ou deixa de ir pelo YouTube.
-let ytWaitTimer = null;
-function showYtPlayHint(show) {
+// Aviso "dê play": o iPhone só deixa o YouTube começar sozinho depois de umas 5 ou 6 músicas com
+// play na mão. O aviso fica fixo nas músicas que vão pelo YouTube até o app perceber que uma começou
+// sozinha (em até 4s, sem ninguém tocar no play): aí o motor esquentou e ele some. O X fecha na mão
+// (volta só quando o app abrir de novo).
+const YT_AUTOPLAY_WINDOW_MS = 4000;
+let ytWarm = false;
+let ytHintDismissed = false;
+let ytSongStartedAt = 0;
+let ytTappedSinceStart = false;
+
+function refreshYtHint() {
   if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
   const hint = document.getElementById('ytPlayHint');
-  if (hint) hint.hidden = !show;
+  if (hint) hint.hidden = !(jblModeActive && ytFallbackActive && !ytWarm && !ytHintDismissed);
 }
-function checkYtWaiting() {
-  if (!ytFallbackActive || !jblModeActive || latestState?.isPaused) return showYtPlayHint(false);
-  const state = mobYtPlayer && typeof mobYtPlayer.getPlayerState === 'function' ? mobYtPlayer.getPlayerState() : -1;
-  // -1: não começou; 5: carregado, esperando o play. Tocando (1) ou carregando (3) não é espera.
-  showYtPlayHint(state === -1 || state === 5);
+
+function dismissYtHint() {
+  ytHintDismissed = true;
+  refreshYtHint();
+}
+
+// Toque de alguém no play: a música que começar agora não conta como "começou sozinha".
+function markYtTapped() { ytTappedSinceStart = true; }
+
+let ytNeededTap = false;
+function noteYtPlaying() {
+  if (ytTappedSinceStart) ytNeededTap = true;
+  if (!ytWarm && !ytTappedSinceStart && Date.now() - ytSongStartedAt <= YT_AUTOPLAY_WINDOW_MS) {
+    ytWarm = true;
+    // Só comemora se antes precisou de play (no Android/PC o YouTube já começa sozinho de cara).
+    if (ytNeededTap && !ytHintDismissed) showToast('🔥 Motor esquentou! Agora as músicas começam sozinhas.');
+  }
+  refreshYtHint();
 }
 
 function activateYtFallback(song) {
@@ -709,9 +731,9 @@ function activateYtFallback(song) {
   pendingYtFallbackSong = song;
   ytFallbackActive = true;
   requestScreenWakeLock();
-  showYtPlayHint(false);
-  clearTimeout(ytWaitTimer);
-  ytWaitTimer = setTimeout(checkYtWaiting, 3000);
+  ytSongStartedAt = Date.now();
+  ytTappedSinceStart = false;
+  refreshYtHint();
 
   if (jblVideoEl) {
     try {
@@ -822,8 +844,7 @@ function onMobYtStateChange(e) {
   const state = e.data;
   const btnResume = document.getElementById('btnResumeAudio');
   if (state === window.YT.PlayerState.PLAYING) {
-    clearTimeout(ytWaitTimer);
-    showYtPlayHint(false);
+    noteYtPlaying();
     updatePlaybackStatus('playing');
     jblPlaybackState = 'playing';
     if (btnResume) btnResume.hidden = true;
@@ -854,7 +875,6 @@ function onMobYtStateChange(e) {
       btnResume.textContent = '▶ Continuar música';
     }
   } else if (state === 5 /* CUED - Autoplay bloqueado pelo navegador */) {
-    if (ytFallbackActive && !latestState?.isPaused) showYtPlayHint(true);
     updatePlaybackStatus('blocked');
     if (btnResume) {
       btnResume.hidden = false;
@@ -880,8 +900,7 @@ const jblRecovery = attachMediaRecovery(jblAudioEl, {
 
 function stopYtFallback() {
   ytFallbackActive = false;
-  clearTimeout(ytWaitTimer);
-  showYtPlayHint(false);
+  refreshYtHint();
   clearInterval(ytProgressTimer);
   if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
     try { mobYtPlayer.stopVideo(); } catch (err) {}
@@ -895,7 +914,8 @@ function syncJblPlayer(song) {
   const box = document.getElementById('jblPlayerBox');
   if (!jblModeActive || !song) {
     box.style.display = 'none';
-    showYtPlayHint(false);
+    const hint = document.getElementById('ytPlayHint');
+    if (hint) hint.hidden = true;
     jblRecovery.reset();
     jblCurrentSongId = null;
     jblCurrentVideoId = null;
@@ -1788,6 +1808,8 @@ function startNextLocally() {
   if (instantYtEnabled && next.id && next.streamReady === false && !instantYtRefused.has(next.videoId)) {
     instantYtSongId = next.id;
     activateYtFallback(next);
+    // Começou dentro do toque de pular: não prova que o iPhone já deixa começar sozinho.
+    markYtTapped();
     return;
   }
   if (ytFallbackActive) return;
