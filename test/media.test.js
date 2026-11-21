@@ -294,6 +294,21 @@ test('áudio em pedaços: pedido aberto vira pedaços pequenos e chega inteiro e
     await proxyChunked(url, { headers: { range: 'bytes=1500-' } }, middle, null, 1000);
     assert.equal(middle.headers['Content-Range'], 'bytes 1500-2999/3000');
     assert.ok(Buffer.concat(middle.parts).equals(content.subarray(1500)), 'arrastar a barra: a partir do meio');
+
+    // Link recusado no meio (o proxy trocou de endereço): pega link novo e continua do mesmo byte.
+    const cut = fakeRes();
+    const stale = `${url}?velho=1`;
+    const original = server.listeners('request')[0];
+    server.removeAllListeners('request');
+    server.on('request', (req, res) => {
+      if (req.url.includes('velho') && !/^bytes=0-/.test(req.headers.range || '')) { res.writeHead(403); return res.end(); }
+      original(req, res);
+    });
+    let refreshed = 0;
+    await proxyChunked(stale, { headers: { range: 'bytes=0-' } }, cut, null, 1000, async () => { refreshed++; return url; });
+    assert.equal(refreshed, 1);
+    assert.ok(!cut.destroyed, 'música não é cortada');
+    assert.ok(Buffer.concat(cut.parts).equals(content), 'chega inteira, sem repetir nem pular pedaço');
   } finally {
     server.close();
   }
