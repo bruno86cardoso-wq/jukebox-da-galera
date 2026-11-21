@@ -1,3 +1,9 @@
+// Sai sempre por IPv4, como o yt-dlp (-4): o YouTube costuma recusar o IPv6 de servidores em nuvem.
+// IPV6_OK=1 volta ao padrão do Node.
+if (process.env.IPV6_OK !== '1') {
+  require('node:dns').setDefaultResultOrder('ipv4first');
+  require('node:net').setDefaultAutoSelectFamily(false);
+}
 const express = require('express');
 const http = require('http');
 const https = require('https');
