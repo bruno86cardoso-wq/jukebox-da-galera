@@ -622,11 +622,12 @@ function toggleUserWakeLock() {
 
 // ==========================================
 // COMEÇAR NA HORA: música que o servidor ainda não preparou (~22s) começa pelo player do YouTube.
-// Opção deste aparelho, desligada por padrão. A música vai até o fim pelo YouTube (trocar no meio
-// engasga no iPhone); a próxima, se já estiver pronta, volta para o áudio do servidor.
+// Ligada por padrão (quem não conhece o app não procuraria o botão); desligar fica salvo no aparelho.
+// A música vai até o fim pelo YouTube (trocar no meio engasga no iPhone); a próxima, se já estiver
+// pronta, volta para o áudio do servidor. Se o YouTube não começar sozinho, o servidor assume.
 // ==========================================
-let instantYtEnabled = false;
-try { instantYtEnabled = localStorage.getItem('jukebox_instant_yt') === '1'; } catch (e) {}
+let instantYtEnabled = true;
+try { instantYtEnabled = localStorage.getItem('jukebox_instant_yt') !== '0'; } catch (e) {}
 let instantYtSongId = null;
 // Clipes que não tocam fora do YouTube (erro 150/101): ficam no áudio do servidor.
 const instantYtRefused = new Set();
