@@ -621,6 +621,37 @@ function toggleUserWakeLock() {
 }
 
 // ==========================================
+// COMEÇAR NA HORA: música que o servidor ainda não preparou (~22s) começa pelo player do YouTube.
+// Opção deste aparelho, desligada por padrão. A música vai até o fim pelo YouTube (trocar no meio
+// engasga no iPhone); a próxima, se já estiver pronta, volta para o áudio do servidor.
+// ==========================================
+let instantYtEnabled = false;
+try { instantYtEnabled = localStorage.getItem('jukebox_instant_yt') === '1'; } catch (e) {}
+let instantYtSongId = null;
+// Clipes que não tocam fora do YouTube (erro 150/101): ficam no áudio do servidor.
+const instantYtRefused = new Set();
+
+function updateInstantYtUi() {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+  const pill = document.getElementById('instantYtStatus');
+  const txt = document.getElementById('instantYtText');
+  if (!pill || !txt) return;
+  pill.classList.toggle('disabled', !instantYtEnabled);
+  txt.textContent = instantYtEnabled ? '⚡ Começar na hora: Ligado' : '⚡ Começar na hora: Desligado';
+}
+
+function toggleInstantYt() {
+  instantYtEnabled = !instantYtEnabled;
+  try { localStorage.setItem('jukebox_instant_yt', instantYtEnabled ? '1' : '0'); } catch (e) {}
+  try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20); } catch (e) {}
+  updateInstantYtUi();
+  showToast(instantYtEnabled
+    ? '⚡ Música nova começa na hora pelo YouTube. Deixe a tela ligada!'
+    : '⚡ Desligado: tudo pelo áudio do servidor.');
+}
+updateInstantYtUi();
+
+// ==========================================
 // FALLBACK DO PLAYER OFICIAL YOUTUBE (PLANO B)
 // ==========================================
 let ytFallbackActive = false;
@@ -747,6 +778,18 @@ function onMobYtError(e) {
   console.warn('Erro no player do YouTube:', e && e.data);
   clearInterval(ytProgressTimer);
   if (!jblModeActive || !jblCurrentSongId) return;
+  // Começou pelo YouTube só para não esperar: em vez de pular a música da galera, toca pelo servidor.
+  if (instantYtSongId && instantYtSongId === jblCurrentSongId && latestState?.currentSong?.id === jblCurrentSongId) {
+    const song = latestState.currentSong;
+    instantYtSongId = null;
+    instantYtRefused.add(song.videoId);
+    stopYtFallback();
+    jblCurrentSongId = null;
+    jblCurrentVideoId = null;
+    showToast('⏳ Esse clipe não toca fora do YouTube: aguardando o áudio do servidor...');
+    syncJblPlayer(song);
+    return;
+  }
   updatePlaybackStatus('error');
   if (socket.connected) {
     socket.emit('hostAction', { action: 'songFailed', payload: { songId: jblCurrentSongId } });
@@ -813,6 +856,17 @@ const jblRecovery = attachMediaRecovery(jblAudioEl, {
   }
 });
 
+function stopYtFallback() {
+  ytFallbackActive = false;
+  clearInterval(ytProgressTimer);
+  if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
+    try { mobYtPlayer.stopVideo(); } catch (err) {}
+  }
+  const ytBox = document.getElementById('mobYtFallbackBox');
+  if (ytBox) ytBox.style.display = 'none';
+  jblLoadedMediaMode = null;
+}
+
 function syncJblPlayer(song) {
   const box = document.getElementById('jblPlayerBox');
   if (!jblModeActive || !song) {
@@ -839,14 +893,16 @@ function syncJblPlayer(song) {
   const isNewSong = song.id !== jblCurrentSongId || song.videoId !== jblCurrentVideoId;
   // O player do YouTube é só reserva da música que falhou: a próxima volta para o áudio normal.
   if (ytFallbackActive && isNewSong && jblMediaMode !== 'youtube') {
-    ytFallbackActive = false;
-    clearInterval(ytProgressTimer);
-    if (mobYtPlayer && typeof mobYtPlayer.stopVideo === 'function') {
-      try { mobYtPlayer.stopVideo(); } catch (err) {}
-    }
-    const ytBox = document.getElementById('mobYtFallbackBox');
-    if (ytBox) ytBox.style.display = 'none';
-    jblLoadedMediaMode = null;
+    stopYtFallback();
+  }
+  if (isNewSong) instantYtSongId = null;
+
+  // Começar na hora: o servidor ainda não preparou esta música, então ela começa pelo YouTube.
+  if (isNewSong && instantYtEnabled && jblMediaMode !== 'youtube' && song.streamReady === false &&
+      !instantYtRefused.has(song.videoId)) {
+    instantYtSongId = song.id;
+    activateYtFallback(song);
+    return;
   }
 
   if (ytFallbackActive || jblMediaMode === 'youtube') {
@@ -1686,9 +1742,17 @@ socket.on('songVetoed', (info) => {
 // Pular no próprio celular do som: já troca o áudio e dá play dentro do toque (o iPhone só deixa
 // o som começar num toque). Quando o servidor confirmar a próxima, o áudio já está tocando.
 function startNextLocally() {
-  if (!jblModeActive || ytFallbackActive || !jblAudioEl) return;
+  if (!jblModeActive || !jblAudioEl) return;
   const next = latestState?.queue?.[0] || latestState?.upcomingRadio;
   if (!next?.videoId || next.videoId === jblCurrentVideoId) return;
+  // Começar na hora: a próxima não está pronta no servidor, então já abre o YouTube dentro do toque
+  // (o iPhone só libera o som que começa num toque).
+  if (instantYtEnabled && next.id && next.streamReady === false && !instantYtRefused.has(next.videoId)) {
+    instantYtSongId = next.id;
+    activateYtFallback(next);
+    return;
+  }
+  if (ytFallbackActive) return;
   jblSwitchingSong = true;
   jblRecovery.reset();
   jblCurrentVideoId = next.videoId;
