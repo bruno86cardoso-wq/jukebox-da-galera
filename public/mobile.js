@@ -1105,6 +1105,29 @@ if (partyCode) {
   document.getElementById('partyCodeInput').value = partyCode;
 }
 
+// Convite: quem abriu pelo QR de uma festa só digita o nome. Criar festa e código ficam escondidos.
+const LOGIN_HINT_DEFAULT = 'Digite o código da festa e seu apelido para pedir músicas!';
+let inviteMode = false;
+function enterInviteMode(code) {
+  const screen = document.getElementById('loginScreen');
+  const hint = document.getElementById('loginHint');
+  if (!screen || !hint || !screen.classList) return;
+  inviteMode = true;
+  screen.classList.add('invite-mode');
+  hint.textContent = '';
+  const name = document.createElement('strong');
+  name.className = 'login-party-name';
+  name.textContent = code;
+  hint.append('Você foi convidado para a festa', name, 'Digite seu nome para entrar!');
+}
+function leaveInviteMode() {
+  if (!inviteMode) return;
+  inviteMode = false;
+  document.getElementById('loginScreen').classList.remove('invite-mode');
+  document.getElementById('loginHint').textContent = LOGIN_HINT_DEFAULT;
+}
+if (partyFromUrl && partyCode === partyFromUrl) enterInviteMode(partyFromUrl);
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1130,6 +1153,8 @@ function showLogin(message) {
   hideSplashScreen();
   document.getElementById('loginScreen').style.display = 'flex';
   if (message) {
+    // Deu erro (festa do QR não existe mais, por exemplo): mostra a tela completa.
+    leaveInviteMode();
     document.getElementById('loginHint').textContent = message;
     showToast(message);
   }
@@ -1207,8 +1232,11 @@ async function joinParty() {
   if (!name) return;
   const codeInput = document.getElementById('partyCodeInput');
   const code = codeInput ? codeInput.value.trim() : '';
+  const invited = inviteMode;
   const success = await enterParty(code, name);
   if (!success) {
+    // Convidado pelo QR não vira dono de uma festa nova sem querer: vê o erro e escolhe.
+    if (invited) return;
     // Se o código digitado ou salvo na URL não existe (ex: servidor reiniciou),
     // cria uma nova festa na hora para o usuário entrar sem travar!
     showToast('Festa anterior expirou. Criando uma nova festa para você...');

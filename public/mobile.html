@@ -47,21 +47,22 @@
       </div>
       <h1>Tô na Fila</h1>
       <p id="loginHint">Digite o código da festa e seu apelido para pedir músicas!</p>
-      <label class="login-label" for="partyCodeInput">Código da festa</label>
-      <input id="partyCodeInput" class="input-text code-input" type="text" placeholder="EX: K7PQ" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+      <label class="login-label login-full-only" for="partyCodeInput">Código da festa</label>
+      <input id="partyCodeInput" class="input-text code-input login-full-only" type="text" placeholder="EX: K7PQ" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" />
       <label class="login-label" for="playerNameInput">Seu nome ou apelido</label>
-      <input id="playerNameInput" class="input-text" type="text" placeholder="Seu nome ou apelido..." maxlength="20" />
+      <input id="playerNameInput" class="input-text" type="text" placeholder="Seu nome ou apelido..." maxlength="20" enterkeyhint="go" onkeydown="if (event.key === 'Enter') joinParty()" />
       <button class="btn-primary" onclick="joinParty()">Entrar na Festa 🚀</button>
-      <div class="login-divider"><span>ou</span></div>
-      <button class="btn-secondary" onclick="createPartyHere()">🎉 Criar uma festa neste celular</button>
-      <button class="btn-secondary" onclick="toggleFixedRoomForm()">📌 Criar sala fixa (QR para imprimir)</button>
-      <form id="fixedRoomForm" class="fixed-room-form" hidden onsubmit="createFixedRoomHere(event)">
+      <button type="button" class="login-other-party" onclick="leaveInviteMode()">Não é essa festa? Entrar em outra ou criar uma</button>
+      <div class="login-divider login-full-only"><span>ou</span></div>
+      <button class="btn-secondary login-full-only" onclick="createPartyHere()">🎉 Criar uma festa neste celular</button>
+      <button class="btn-secondary login-full-only" onclick="toggleFixedRoomForm()">📌 Criar sala fixa (QR para imprimir)</button>
+      <form id="fixedRoomForm" class="fixed-room-form login-full-only" hidden onsubmit="createFixedRoomHere(event)">
         <small>O nome vira o código do QR, que nunca muda: imprima e use em todas as festas. Com a senha você vira anfitrião em qualquer aparelho.</small>
         <input id="fixedRoomNameInput" class="input-text" type="text" maxlength="40" placeholder="Nome da sala (ex.: Bruno)" required />
         <input id="fixedRoomPasswordInput" class="input-text" type="password" maxlength="64" minlength="4" placeholder="Senha do anfitrião" required />
         <button class="btn-primary" type="submit">Criar sala fixa 📌</button>
       </form>
-      <small class="login-foot">Quem cria a festa vira o anfitrião. O código aparece no QR Code para a galera entrar.</small>
+      <small class="login-foot login-full-only">Quem cria a festa vira o anfitrião. O código aparece no QR Code para a galera entrar.</small>
     </div>
   </div>
 

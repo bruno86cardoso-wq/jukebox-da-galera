@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function browser(page) {
+function browser(page, { search = '' } = {}) {
   const elements = new Map();
   const handlers = new Map();
   const timers = new Map();
@@ -26,7 +26,7 @@ function browser(page) {
   const storage = new Map();
   const context = vm.createContext({ document, console, navigator: {}, URLSearchParams,
     history: { replaceState() {} },
-    window: { location: { origin: 'http://localhost', href: 'http://localhost/', search: '', pathname: '/' } },
+    window: { location: { origin: 'http://localhost', href: 'http://localhost/' + search, search, pathname: '/' } },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id; },
     clearTimeout(id) { timers.delete(id); },
@@ -384,4 +384,24 @@ test('pular de uma música no YouTube para uma pronta no servidor troca para o �
   confirmed.queue = [];
   b.handlers.get('stateUpdate')(confirmed);
   assert.equal(audio.currentTime, 1.5, 'não recomeça do zero');
+});
+
+test('quem abre pelo QR de uma festa só digita o nome e não cria festa sem querer', async () => {
+  const b = browser('mobile', { search: '?festa=abcd' });
+  const added = [];
+  b.context.document.getElementById('loginScreen').classList.add = cls => added.push(cls);
+  // O modo convite é ligado ao carregar a página, antes do espião: liga de novo para conferir.
+  vm.runInContext("enterInviteMode('ABCD')", b.context);
+  assert.equal(vm.runInContext('inviteMode', b.context), true);
+  assert.ok(added.includes('invite-mode'), 'esconde código e botões de criar festa');
+  let created = 0;
+  vm.runInContext('socket', b.context).joinParty = async () => ({ ok: false, error: 'Festa não encontrada.' });
+  b.context.createPartyHere = async () => { created++; };
+  b.context.document.getElementById('playerNameInput').value = 'Ana';
+  await vm.runInContext('joinParty()', b.context);
+  assert.equal(created, 0, 'convidado não vira dono de festa nova');
+  assert.equal(vm.runInContext('inviteMode', b.context), false, 'mostra a tela completa com o erro');
+
+  const plain = browser('mobile');
+  assert.equal(vm.runInContext('inviteMode', plain.context), false, 'sem QR: tela completa');
 });

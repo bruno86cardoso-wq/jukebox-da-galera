@@ -1758,6 +1758,15 @@ body:not(.can-control) .control-only { display: none !important; }
 .fixed-room-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .login-foot { display: block; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
 
+/* Convite (abriu pelo QR de uma festa): só o nome e o botão de entrar. */
+.login-screen.invite-mode .login-full-only { display: none !important; }
+.login-other-party { display: none; }
+.login-screen.invite-mode .login-other-party {
+  display: block; width: 100%; margin-top: 14px; padding: 8px; background: none; border: none;
+  color: var(--text-muted); font-size: 13px; text-decoration: underline; cursor: pointer;
+}
+.login-party-name { display: block; margin: 4px 0 2px; font-size: 22px; font-weight: 900; color: #facc15; letter-spacing: 1px; }
+
 .party-pill {
   border: 1px solid rgba(250, 204, 21, 0.5);
   background: rgba(250, 204, 21, 0.12);
