@@ -1118,13 +1118,19 @@ function enterInviteMode(code) {
   const name = document.createElement('strong');
   name.className = 'login-party-name';
   name.textContent = code;
-  hint.append('Você foi convidado para a festa', name, 'Digite seu nome para entrar!');
+  hint.append('Você foi convidado para a festa', name);
+  const label = document.getElementById('playerNameLabel');
+  if (label) label.textContent = '👇 Digite seu nome aqui para entrar';
+  const input = document.getElementById('playerNameInput');
+  if (input) input.placeholder = 'Seu nome';
 }
 function leaveInviteMode() {
   if (!inviteMode) return;
   inviteMode = false;
   document.getElementById('loginScreen').classList.remove('invite-mode');
   document.getElementById('loginHint').textContent = LOGIN_HINT_DEFAULT;
+  document.getElementById('playerNameLabel').textContent = 'Seu nome ou apelido';
+  document.getElementById('playerNameInput').placeholder = 'Seu nome ou apelido...';
 }
 if (partyFromUrl && partyCode === partyFromUrl) enterInviteMode(partyFromUrl);
 
@@ -1138,12 +1144,35 @@ function showToast(msg) {
   }, 3000);
 }
 
+// Tocou em Entrar sem nome: aviso grande embaixo do campo, campo treme e recebe o foco.
+function showNameError() {
+  const input = document.getElementById('playerNameInput');
+  const error = document.getElementById('nameError');
+  if (error) error.hidden = false;
+  if (input && input.classList) {
+    input.classList.remove('input-error');
+    void input.offsetWidth; // reinicia a animação de tremer a cada toque
+    input.classList.add('input-error');
+  }
+  try { input.focus(); } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+  showToast('✍️ Digite seu nome para entrar!');
+}
+function hideNameError() {
+  const error = document.getElementById('nameError');
+  if (error) error.hidden = true;
+  const input = document.getElementById('playerNameInput');
+  if (input && input.classList) input.classList.remove('input-error');
+}
+
 function readLoginName() {
-  const name = document.getElementById('playerNameInput').value.trim();
+  const input = document.getElementById('playerNameInput');
+  const name = input.value.trim();
   if (!name) {
-    showToast('Digite seu nome ou apelido!');
+    showNameError();
     return null;
   }
+  hideNameError();
   myPlayerName = name;
   localStorage.setItem('jukebox_player_name', myPlayerName);
   return name;

@@ -49,8 +49,9 @@
       <p id="loginHint">Digite o código da festa e seu apelido para pedir músicas!</p>
       <label class="login-label login-full-only" for="partyCodeInput">Código da festa</label>
       <input id="partyCodeInput" class="input-text code-input login-full-only" type="text" placeholder="EX: K7PQ" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-      <label class="login-label" for="playerNameInput">Seu nome ou apelido</label>
-      <input id="playerNameInput" class="input-text" type="text" placeholder="Seu nome ou apelido..." maxlength="20" enterkeyhint="go" onkeydown="if (event.key === 'Enter') joinParty()" />
+      <label id="playerNameLabel" class="login-label" for="playerNameInput">Seu nome ou apelido</label>
+      <input id="playerNameInput" class="input-text" type="text" placeholder="Seu nome ou apelido..." maxlength="20" enterkeyhint="go" onkeydown="if (event.key === 'Enter') joinParty()" oninput="hideNameError()" />
+      <div id="nameError" class="login-name-error" role="alert" hidden>☝️ Digite seu nome no campo acima para entrar!</div>
       <button class="btn-primary" onclick="joinParty()">Entrar na Festa 🚀</button>
       <button type="button" class="login-other-party" onclick="leaveInviteMode()">Não é essa festa? Entrar em outra ou criar uma</button>
       <div class="login-divider login-full-only"><span>ou</span></div>

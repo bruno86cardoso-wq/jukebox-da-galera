@@ -1765,6 +1765,30 @@ body:not(.can-control) .control-only { display: none !important; }
   display: block; width: 100%; margin-top: 14px; padding: 8px; background: none; border: none;
   color: var(--text-muted); font-size: 13px; text-decoration: underline; cursor: pointer;
 }
+/* No convite, o campo do nome é o único passo: precisa saltar aos olhos. */
+.login-screen.invite-mode #playerNameLabel {
+  text-align: center; margin: 18px 0 8px; font-size: 17px; color: #facc15; letter-spacing: 0.5px; text-transform: none;
+}
+.login-screen.invite-mode #playerNameInput {
+  font-size: 20px; text-align: center; padding: 16px; border: 2px solid #facc15;
+  animation: name-glow 1.6s ease-in-out infinite;
+}
+.login-screen.invite-mode #playerNameInput:focus { animation: none; box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.35); }
+@keyframes name-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.0); }
+  50% { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.35); }
+}
+.login-name-error {
+  margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px; background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.7); color: #fecaca; font-size: 15px; font-weight: 800; text-align: center;
+}
+.login-name-error[hidden] { display: none; }
+#playerNameInput.input-error { border-color: #ef4444 !important; animation: name-shake 0.4s; }
+@keyframes name-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
 .login-party-name { display: block; margin: 4px 0 2px; font-size: 22px; font-weight: 900; color: #facc15; letter-spacing: 1px; }
 
 .party-pill {
