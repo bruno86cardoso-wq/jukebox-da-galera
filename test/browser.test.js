@@ -363,3 +363,25 @@ test('pular no celular do som já troca o áudio no toque e não recomeça quand
   assert.equal(audio.currentTime, 1.5, 'não recomeça do zero');
   assert.equal(vm.runInContext('jblCurrentSongId', b.context), 'next');
 });
+
+test('pular de uma música no YouTube para uma pronta no servidor troca para o áudio do app no toque', async () => {
+  const b = browser('mobile');
+  const s = state();
+  const next = { ...s.currentSong, id: 'next', videoId: 'proximaabcd', streamReady: true };
+  s.queue = [next];
+  b.handlers.get('stateUpdate')(s);
+  await vm.runInContext('toggleJblMode()', b.context);
+  vm.runInContext('ytFallbackActive = true', b.context);
+  spySocket(b);
+  const audio = b.elements.get('mobJblAudio');
+  vm.runInContext("remoteControl('skipSong')", b.context);
+  assert.equal(vm.runInContext('ytFallbackActive', b.context), false, 'sai do YouTube');
+  assert.ok(audio.src.endsWith('/api/audio/proximaabcd'), 'troca no toque');
+  assert.equal(audio.paused, false, 'play no toque');
+  audio.currentTime = 1.5;
+  const confirmed = state();
+  confirmed.currentSong = next;
+  confirmed.queue = [];
+  b.handlers.get('stateUpdate')(confirmed);
+  assert.equal(audio.currentTime, 1.5, 'não recomeça do zero');
+});

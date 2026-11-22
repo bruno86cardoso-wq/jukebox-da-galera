@@ -1814,7 +1814,13 @@ function startNextLocally() {
     markYtTapped();
     return;
   }
-  if (ytFallbackActive) return;
+  if (jblMediaMode === 'youtube') return;
+  // A atual está no YouTube e a próxima já está pronta no servidor: troca para o áudio do app
+  // dentro do toque de pular, que o iPhone deixa começar sem pedir outro toque.
+  if (ytFallbackActive) {
+    instantYtSongId = null;
+    stopYtFallback();
+  }
   jblSwitchingSong = true;
   jblRecovery.reset();
   jblCurrentVideoId = next.videoId;
