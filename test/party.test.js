@@ -167,3 +167,27 @@ test('anfitrião arrasta música na fila e a ordem escolhida fica', () => {
   party.addSong('bia', song('eeeeeeeeeee'));
   assert.deepEqual(order(), ['b', 'c', 'd', 'e']);
 });
+
+test('quando a próxima da fila fica pronta no servidor, avisa os celulares', async () => {
+  const cache = new Map();
+  const waiting = new Map();
+  const media = {
+    cache,
+    resolveStreamUrl: (id) => new Promise(resolve => waiting.set(id, () => {
+      const entry = { url: 'https://x/' + id, expiresAt: Date.now() + 60000 };
+      cache.set(`audio:${id}`, entry);
+      resolve(entry);
+    }))
+  };
+  let changes = 0;
+  const party = createParty({ code: 'TEST', hostKeyHash: 'x', media, changed: () => { changes++; } });
+  party.join('ana', 'Ana');
+  party.addSong('ana', song('aaaaaaaaaaa'));
+  party.addSong('ana', song('bbbbbbbbbbb'));
+  assert.equal(party.publicState({}).queue[0].streamReady, false, 'ainda preparando');
+  const before = changes;
+  waiting.get('bbbbbbbbbbb')();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(changes > before, 'transmite o estado de novo');
+  assert.equal(party.publicState({}).queue[0].streamReady, true, 'celular já sabe que está pronta');
+});
