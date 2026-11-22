@@ -240,6 +240,17 @@ test('primeiro toque destrava o áudio só no celular que toca o som', async () 
   assert.equal(audio.paused, true);
 });
 
+test('toque no play do YouTube também destrava o áudio do app para a próxima música', async () => {
+  const b = browser('mobile');
+  vm.runInContext("jblModeActive = true; ytFallbackActive = true; jblCurrentSongId = 'song1'; jblCurrentVideoId = 'abcdefghijk'", b.context);
+  const audio = b.elements.get('mobJblAudio');
+  vm.runInContext('unlockJblAudio()', b.context);
+  assert.ok(audio.src.startsWith('data:audio/wav'), 'toca um silêncio no player do app');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(vm.runInContext('jblAudioUnlocked', b.context), true);
+  assert.equal(audio.src, '', 'limpa o silêncio depois');
+});
+
 test('depois de uma música com erro, a próxima volta para o áudio normal', async () => {
   const b = browser('mobile');
   b.handlers.get('stateUpdate')(state());

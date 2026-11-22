@@ -307,7 +307,9 @@ function unlockJblAudio() {
   // Só no celular que toca o som da festa: nos convidados, até um silêncio pausaria o app de música deles.
   if (!jblModeActive || jblAudioUnlocked || !jblAudioEl || typeof jblAudioEl.play !== 'function') return;
   // Já tem música esperando um toque: o toque serve para tocá-la.
-  if (jblCurrentVideoId) {
+  // Exceção: a música está no player do YouTube e o player do app está livre. O toque também
+  // libera o player do app, senão a próxima música pronta no servidor também ficaria esperando um toque.
+  if (jblCurrentVideoId && !ytFallbackActive) {
     if (jblModeActive && jblPlaybackState === 'blocked' && !latestState?.isPaused) {
       playJblMedia().then(() => { if (!jblAudioEl.paused) jblAudioUnlocked = true; });
     }
@@ -318,8 +320,8 @@ function unlockJblAudio() {
     const attempt = jblAudioEl.play();
     Promise.resolve(attempt).then(() => {
       jblAudioUnlocked = true;
-      // Só limpa se nenhuma música começou nesse meio tempo.
-      if (!jblCurrentVideoId) {
+      // Só limpa se nenhuma música do servidor entrou no player nesse meio tempo.
+      if (String(jblAudioEl.src || '').startsWith('data:audio/wav')) {
         jblAudioEl.pause();
         jblAudioEl.removeAttribute('src');
       }
